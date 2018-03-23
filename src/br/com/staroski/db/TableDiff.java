@@ -18,6 +18,9 @@ public final class TableDiff {
               List<Column> rightMissingColumns) {
         this.leftTable = leftTable;
         this.rightTable = rightTable;
+        Collections.sort(allColumns);
+        Collections.sort(leftMissingColumns);
+        Collections.sort(rightMissingColumns);
         this.allColumns = Collections.unmodifiableList(allColumns);
         this.leftMissingColumns = Collections.unmodifiableList(leftMissingColumns);
         this.rightMissingColumns = Collections.unmodifiableList(rightMissingColumns);

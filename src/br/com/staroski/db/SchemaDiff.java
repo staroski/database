@@ -18,6 +18,9 @@ public final class SchemaDiff {
                List<Table> rightMissingTables) {
         this.leftSchema = leftSchema;
         this.rightSchema = rightSchema;
+        Collections.sort(allTables);
+        Collections.sort(leftMissingTables);
+        Collections.sort(rightMissingTables);
         this.allTables = Collections.unmodifiableList(allTables);
         this.leftMissingTables = Collections.unmodifiableList(leftMissingTables);
         this.rightMissingTables = Collections.unmodifiableList(rightMissingTables);

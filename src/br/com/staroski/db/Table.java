@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-public final class Table {
+public final class Table implements Comparable<Table> {
 
     private final Connection connection;
     private final Schema schema;
@@ -20,6 +20,21 @@ public final class Table {
         this.schema = schema;
         this.name = name;
         this.type = type;
+    }
+
+    @Override
+    public int compareTo(Table other) {
+        if (this == other) {
+            return 0;
+        }
+        if (other == null) {
+            return 1;
+        }
+        int diff = this.name.compareTo(other.name);
+        if (diff == 0) {
+            diff = this.type.compareTo(other.type);
+        }
+        return diff;
     }
 
     public TableDiff compareWith(Table other) {
@@ -46,6 +61,35 @@ public final class Table {
             leftMissingColumns.add(rightColumn);
         }
         return new TableDiff(leftTable, rightTable, allColumns, leftMissingColumns, rightMissingColumns);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof Table)) {
+            return false;
+        }
+        Table other = (Table) obj;
+        if (name == null) {
+            if (other.name != null) {
+                return false;
+            }
+        } else if (!name.equals(other.name)) {
+            return false;
+        }
+        if (type == null) {
+            if (other.type != null) {
+                return false;
+            }
+        } else if (!type.equals(other.type)) {
+            return false;
+        }
+        return true;
     }
 
     public Column getColumn(String name) {
@@ -99,6 +143,15 @@ public final class Table {
 
     public String getType() {
         return type;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((name == null) ? 0 : name.hashCode());
+        result = prime * result + ((type == null) ? 0 : type.hashCode());
+        return result;
     }
 
     @Override
