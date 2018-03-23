@@ -10,12 +10,18 @@ import java.util.List;
 public final class Catalog {
 
     private final Connection connection;
+    private final Database database;
     private final String name;
     private List<Schema> schemas;
 
-    Catalog(Connection connection, String name) {
+    Catalog(Connection connection, Database database, String name) {
         this.connection = connection;
+        this.database = database;
         this.name = name;
+    }
+
+    public Database getDatabase() {
+        return database;
     }
 
     public String getName() {
