@@ -22,6 +22,32 @@ public final class Table {
         this.type = type;
     }
 
+    public TableDiff compareWith(Table other) {
+        final Table leftTable = this;
+        final Table rightTable = other;
+        final List<Column> allColumns = new LinkedList<Column>();
+        final List<Column> leftColumns = new LinkedList<Column>(leftTable.getColumns());
+        final List<Column> rightColumns = new LinkedList<Column>(rightTable.getColumns());
+        final List<Column> rightMissingColumns = new LinkedList<Column>();
+        final List<Column> leftMissingColumns = new LinkedList<Column>();
+        while (!leftColumns.isEmpty()) {
+            Column leftColumn = leftColumns.remove(0);
+            allColumns.add(leftColumn);
+            Column rightColumn = rightTable.getColumn(leftColumn.getName());
+            if (rightColumn == null) {
+                rightMissingColumns.add(leftColumn);
+            } else {
+                rightColumns.remove(rightColumn);
+            }
+        }
+        while (!rightColumns.isEmpty()) {
+            Column rightColumn = rightColumns.remove(0);
+            allColumns.add(rightColumn);
+            leftMissingColumns.add(rightColumn);
+        }
+        return new TableDiff(leftTable, rightTable, allColumns, leftMissingColumns, rightMissingColumns);
+    }
+
     public Column getColumn(String name) {
         for (Column column : getColumns()) {
             if (Strings.areEqualsIgnoreCase(name, column.getName())) {

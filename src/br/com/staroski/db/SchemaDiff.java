@@ -11,12 +11,16 @@ public final class SchemaDiff {
     private final List<Table> leftMissingTables;
     private final List<Table> rightMissingTables;
 
-    SchemaDiff(Schema schemaLeft, Schema schemaRight, List<Table> all, List<Table> missingLeft, List<Table> missingRight) {
-        this.leftSchema = schemaLeft;
-        this.rightSchema = schemaRight;
-        this.allTables = Collections.unmodifiableList(all);
-        this.leftMissingTables = Collections.unmodifiableList(missingLeft);
-        this.rightMissingTables = Collections.unmodifiableList(missingRight);
+    SchemaDiff(Schema leftSchema,
+               Schema rightSchema,
+               List<Table> allTables,
+               List<Table> leftMissingTables,
+               List<Table> rightMissingTables) {
+        this.leftSchema = leftSchema;
+        this.rightSchema = rightSchema;
+        this.allTables = Collections.unmodifiableList(allTables);
+        this.leftMissingTables = Collections.unmodifiableList(leftMissingTables);
+        this.rightMissingTables = Collections.unmodifiableList(rightMissingTables);
     }
 
     public List<Table> getAllTables() {
