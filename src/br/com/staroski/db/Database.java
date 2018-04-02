@@ -10,8 +10,8 @@ import java.util.List;
 
 public final class Database {
 
-    public static Database connect(String driver, String protocol, String host, int port, String name, String user, String pass) {
-        return new Database(driver, protocol, host, port, name, user, pass);
+    public static Database connect(String driver, String protocol, String host, int port, String databaseName, String user, String pass) {
+        return new Database(driver, protocol, host, port, databaseName, user, pass);
     }
 
     private final String driver;
@@ -23,6 +23,7 @@ public final class Database {
     private final String user;
     private final Connection connection;
     private List<Catalog> catalogs;
+    private String alias;
 
     private Database(String driver, String protocol, String host, int port, String name, String user, String pass) {
         try {
@@ -34,6 +35,7 @@ public final class Database {
             this.name = name;
             this.url = protocol + "://" + host + ":" + port + "/" + name;
             this.user = user;
+            this.alias = name;
             connection = DriverManager.getConnection(url, user, pass);
         } catch (Exception e) {
             throw UncheckedException.wrap(e);
@@ -46,6 +48,10 @@ public final class Database {
         } catch (SQLException e) {
             throw UncheckedException.wrap(e);
         }
+    }
+
+    public String getAlias() {
+        return alias;
     }
 
     public Catalog getCatalog(String name) {
@@ -93,6 +99,11 @@ public final class Database {
 
     public String getUser() {
         return user;
+    }
+
+    public Database setAlias(String alias) {
+        this.alias = alias == null ? name : alias;
+        return this;
     }
 
     @Override

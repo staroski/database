@@ -1,6 +1,6 @@
 package br.com.staroski.db;
 
-final class UncheckedException extends RuntimeException {
+public final class UncheckedException extends RuntimeException {
 
     private static final long serialVersionUID = 1;
 

@@ -4,11 +4,15 @@ public final class Column implements Comparable<Column> {
 
     private final String name;
     private final String type;
+    private final int size;
+    private final int scale;
     private final int javaSqlType;
 
-    public Column(String name, String type, int javaSqlType) {
+    public Column(String name, String type, int size, int decimalDigits, int javaSqlType) {
         this.name = name;
         this.type = type;
+        this.size = size;
+        this.scale = decimalDigits;
         this.javaSqlType = javaSqlType;
     }
 
@@ -62,6 +66,14 @@ public final class Column implements Comparable<Column> {
 
     public String getName() {
         return name;
+    }
+
+    public int getScale() {
+        return scale;
+    }
+
+    public int getSize() {
+        return size;
     }
 
     public String getType() {

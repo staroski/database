@@ -45,4 +45,8 @@ public final class SchemaDiff {
     public Schema getRightSchema() {
         return rightSchema;
     }
+
+    public boolean hasDifferences() {
+        return !(leftMissingTables.isEmpty() && rightMissingTables.isEmpty());
+    }
 }

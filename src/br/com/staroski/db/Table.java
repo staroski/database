@@ -123,8 +123,10 @@ public final class Table implements Comparable<Table> {
                 }
                 String columnName = result.getString("COLUMN_NAME");
                 String columnType = result.getString("TYPE_NAME");
+                int size = result.getInt("COLUMN_SIZE");
+                int decimalDigits = result.getInt("DECIMAL_DIGITS");
                 int javaSqlType = result.getInt("DATA_TYPE");
-                list.add(new Column(columnName, columnType, javaSqlType));
+                list.add(new Column(columnName, columnType, size, decimalDigits, javaSqlType));
             }
         } catch (SQLException e) {
             throw UncheckedException.wrap(e);

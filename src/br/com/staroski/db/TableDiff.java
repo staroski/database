@@ -45,4 +45,8 @@ public final class TableDiff {
     public Table getRightTable() {
         return rightTable;
     }
+
+    public boolean hasDifferences() {
+        return !(leftMissingColumns.isEmpty() && rightMissingColumns.isEmpty());
+    }
 }
