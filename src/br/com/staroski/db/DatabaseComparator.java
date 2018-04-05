@@ -40,50 +40,14 @@ public final class DatabaseComparator {
         this(new File(excelFile));
     }
 
-    public void compare(Database leftDatabase, Database rightDatabase, String catalogName, String schemaName) throws Exception {
-        try {
-            debug("comparing database %s with %s%n", leftDatabase.getAlias(), rightDatabase.getAlias());
+    public void compareSchemas(Schema leftSchema, Schema rightSchema) throws Exception {
+        debug("comparing schema %s with %s%n", leftSchema.getName(), rightSchema.getName());
+        SchemaDiff diff = leftSchema.compareWith(rightSchema);
+        debug("comparison finished%n");
 
-            Catalog leftCatalog = leftDatabase.getCatalog(catalogName);
-            Schema leftSchema = leftCatalog.getSchema(schemaName);
-
-            Catalog rightCatalog = rightDatabase.getCatalog(catalogName);
-            Schema rightSchema = rightCatalog.getSchema(schemaName);
-
-            debug("comparing schema %s%n", leftSchema.getName());
-            SchemaDiff diff = leftSchema.compareWith(rightSchema);
-            debug("comparison finished%n");
-
-            debug("exporting excel report%n");
-            exportExcel(diff);
-            debug("report saved at: \"%s\"%n", excelFile.getAbsolutePath());
-        } finally {
-            leftDatabase.disconnect();
-        }
-    }
-
-    private boolean areColumnsEquals(String columnName, Table leftTable, Table rightTable) {
-        Column leftColumn = leftTable.getColumn(columnName);
-        Column rightColumn = rightTable.getColumn(columnName);
-        if (leftColumn == rightColumn) {
-            return true;
-        }
-        if (leftColumn == null) {
-            return false;
-        }
-        if (rightColumn == null) {
-            return false;
-        }
-        if (!leftColumn.getType().equals(rightColumn.getType())) {
-            return false;
-        }
-        if (leftColumn.getSize() != rightColumn.getSize()) {
-            return false;
-        }
-        if (leftColumn.getScale() != rightColumn.getScale()) {
-            return false;
-        }
-        return true;
+        debug("exporting excel report%n");
+        exportExcel(diff);
+        debug("report saved at: \"%s\"%n", excelFile.getAbsolutePath());
     }
 
     private CellStyle cellStyleGreen(Workbook workbook) {
@@ -148,7 +112,7 @@ public final class DatabaseComparator {
         return yellow;
     }
 
-    private boolean createCellForTable(SchemaDiff diff, Workbook workbook, Sheet sheet, int line, String tableName) {
+    private boolean createSchemaCellForTable(SchemaDiff diff, Workbook workbook, Sheet sheet, int line, String tableName) {
         Row row = sheet.createRow(line);
         Cell leftTypeCell = row.createCell(0);
         Cell leftTableCell = row.createCell(1);
@@ -163,7 +127,7 @@ public final class DatabaseComparator {
             leftTableCell.setCellStyle(cellStyleRed(workbook));
             sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 1));
         } else {
-            Table table = diff.getRightSchema().getTable(tableName);
+            Table table = diff.getLeftSchema().getTable(tableName);
             CellStyle cellStyle = missingOnRight ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
             leftTypeCell.setCellStyle(cellStyle);
             leftTypeCell.setCellValue(table.getType());
@@ -177,7 +141,7 @@ public final class DatabaseComparator {
             rightTableCell.setCellStyle(cellStyleRed(workbook));
             sheet.addMergedRegion(new CellRangeAddress(line, line, 2, 3));
         } else {
-            Table table = diff.getLeftSchema().getTable(tableName);
+            Table table = diff.getRightSchema().getTable(tableName);
             CellStyle cellStyle = missingOnLeft ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
             rightTypeCell.setCellStyle(cellStyle);
             rightTypeCell.setCellValue(table.getType());
@@ -187,7 +151,23 @@ public final class DatabaseComparator {
         return !missingOnLeft && !missingOnRight;
     }
 
-    private void createHeaderForDatabase(Workbook workbook, Sheet sheet, int line, SchemaDiff diff) {
+    private void createSchemaHeader(Workbook workbook, Sheet sheet, int line, SchemaDiff diff) {
+        Row row = sheet.createRow(line);
+        Cell leftTypeCell = row.createCell(0);
+        Cell leftTableCell = row.createCell(1);
+        Cell rightTypeCell = row.createCell(2);
+        Cell rightTableCell = row.createCell(3);
+
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftTableCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightTableCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftTypeCell.setCellValue("Schema " + diff.getLeftSchema().getName());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
+    }
+
+    private void createSchemaHeaderForDatabase(Workbook workbook, Sheet sheet, int line, SchemaDiff diff) {
         Schema leftSchema = diff.getLeftSchema();
         Schema rightSchema = diff.getRightSchema();
 
@@ -209,23 +189,7 @@ public final class DatabaseComparator {
         sheet.addMergedRegion(new CellRangeAddress(line, line, 2, 3));
     }
 
-    private void createHeaderForSchema(Workbook workbook, Sheet sheet, int line, SchemaDiff diff) {
-        Row row = sheet.createRow(line);
-        Cell leftTypeCell = row.createCell(0);
-        Cell leftTableCell = row.createCell(1);
-        Cell rightTypeCell = row.createCell(2);
-        Cell rightTableCell = row.createCell(3);
-
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftTableCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightTableCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftTypeCell.setCellValue("Schema " + diff.getLeftSchema().getName());
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
-    }
-
-    private void createHeaderForTables(Workbook workbook, Sheet sheet, int line) {
+    private void createSchemaHeaderForTables(Workbook workbook, Sheet sheet, int line) {
         Row row = sheet.createRow(line);
         Cell leftTypeCell = row.createCell(0);
         Cell leftTableCell = row.createCell(1);
@@ -241,6 +205,153 @@ public final class DatabaseComparator {
         leftTableCell.setCellValue("Name");
         rightTypeCell.setCellValue("Type");
         rightTableCell.setCellValue("Name");
+    }
+
+    private void createTableCellForColumn(TableDiff diff, Workbook workbook, Sheet sheet, int line, String columnName) {
+        Row row = sheet.createRow(line);
+        Cell leftColumnCell = row.createCell(0);
+        Cell leftTypeCell = row.createCell(1);
+        Cell leftLengthCell = row.createCell(2);
+        Cell leftScaleCell = row.createCell(3);
+        Cell rightColumnCell = row.createCell(4);
+        Cell rightTypeCell = row.createCell(5);
+        Cell rightLengthCell = row.createCell(6);
+        Cell rightScaleCell = row.createCell(7);
+
+        boolean different = !Table.areColumnsEquals(columnName, diff.getLeftTable(), diff.getRightTable());
+        boolean missingOnLeft = diff.isMissingOnLeft(columnName);
+        boolean missingOnRight = diff.isMissingOnRight(columnName);
+
+        if (missingOnLeft) {
+            CellStyle cellStyle = cellStyleRed(workbook);
+            leftColumnCell.setCellStyle(cellStyle);
+            leftTypeCell.setCellStyle(cellStyle);
+            leftLengthCell.setCellStyle(cellStyle);
+            leftScaleCell.setCellStyle(cellStyle);
+            leftColumnCell.setCellValue(MISSING);
+            sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
+        } else {
+            CellStyle cellStyle = different || missingOnRight ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
+            leftColumnCell.setCellStyle(cellStyle);
+            leftTypeCell.setCellStyle(cellStyle);
+            leftLengthCell.setCellStyle(cellStyle);
+            leftScaleCell.setCellStyle(cellStyle);
+
+            Column leftColumn = diff.getLeftTable().getColumn(columnName);
+            leftColumnCell.setCellValue(leftColumn.getName());
+            leftTypeCell.setCellValue(leftColumn.getType());
+            leftLengthCell.setCellValue(leftColumn.getSize());
+            int scale = leftColumn.getScale();
+            if (scale > 0) {
+                leftScaleCell.setCellValue(scale);
+            }
+        }
+
+        if (missingOnRight) {
+            CellStyle cellStyle = cellStyleRed(workbook);
+            rightColumnCell.setCellStyle(cellStyle);
+            rightTypeCell.setCellStyle(cellStyle);
+            rightLengthCell.setCellStyle(cellStyle);
+            rightScaleCell.setCellStyle(cellStyle);
+            rightColumnCell.setCellValue(MISSING);
+            sheet.addMergedRegion(new CellRangeAddress(line, line, 4, 7));
+        } else {
+            CellStyle cellStyle = different || missingOnLeft ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
+            rightColumnCell.setCellStyle(cellStyle);
+            rightTypeCell.setCellStyle(cellStyle);
+            rightLengthCell.setCellStyle(cellStyle);
+            rightScaleCell.setCellStyle(cellStyle);
+
+            Column rightColumn = diff.getRightTable().getColumn(columnName);
+            rightColumnCell.setCellValue(rightColumn.getName());
+            rightTypeCell.setCellValue(rightColumn.getType());
+            rightLengthCell.setCellValue(rightColumn.getSize());
+            int scale = rightColumn.getScale();
+            if (scale > 0) {
+                rightScaleCell.setCellValue(scale);
+            }
+        }
+    }
+
+    private void createTableHeader(Workbook workbook, Table leftTable, Sheet sheet, int line) {
+        Row row = sheet.createRow(line);
+        Cell leftColumnCell = row.createCell(0);
+        Cell leftTypeCell = row.createCell(1);
+        Cell leftLengthCell = row.createCell(2);
+        Cell leftScaleCell = row.createCell(3);
+        Cell rightColumnCell = row.createCell(4);
+        Cell rightTypeCell = row.createCell(5);
+        Cell rightLengthCell = row.createCell(6);
+        Cell rightScaleCell = row.createCell(7);
+
+        leftColumnCell.setCellStyle(cellStyleHeader(workbook));
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftLengthCell.setCellStyle(cellStyleHeader(workbook));
+        leftScaleCell.setCellStyle(cellStyleHeader(workbook));
+        rightColumnCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightLengthCell.setCellStyle(cellStyleHeader(workbook));
+        rightScaleCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftColumnCell.setCellValue("Table " + leftTable.getName());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 7));
+    }
+
+    private void createTableHeaderForColumns(Workbook workbook, Sheet sheet, int line) {
+        Row row = sheet.createRow(line);
+        Cell leftColumnCell = row.createCell(0);
+        Cell leftTypeCell = row.createCell(1);
+        Cell leftLengthCell = row.createCell(2);
+        Cell leftScaleCell = row.createCell(3);
+        Cell rightColumnCell = row.createCell(4);
+        Cell rightTypeCell = row.createCell(5);
+        Cell rightLengthCell = row.createCell(6);
+        Cell rightScaleCell = row.createCell(7);
+
+        leftColumnCell.setCellStyle(cellStyleHeader(workbook));
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftLengthCell.setCellStyle(cellStyleHeader(workbook));
+        leftScaleCell.setCellStyle(cellStyleHeader(workbook));
+        rightColumnCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightLengthCell.setCellStyle(cellStyleHeader(workbook));
+        rightScaleCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftColumnCell.setCellValue("Column");
+        leftTypeCell.setCellValue("Type");
+        leftLengthCell.setCellValue("Size");
+        leftScaleCell.setCellValue("Scale");
+        rightColumnCell.setCellValue("Column");
+        rightTypeCell.setCellValue("Type");
+        rightLengthCell.setCellValue("Size");
+        rightScaleCell.setCellValue("Scale");
+    }
+
+    private void createTableHeaderForDatabase(Workbook workbook, Table leftTable, Table rightTable, Sheet sheet, int line) {
+        Row row = sheet.createRow(line);
+        Cell leftColumnCell = row.createCell(0);
+        Cell leftTypeCell = row.createCell(1);
+        Cell leftLengthCell = row.createCell(2);
+        Cell leftScaleCell = row.createCell(3);
+        Cell rightColumnCell = row.createCell(4);
+        Cell rightTypeCell = row.createCell(5);
+        Cell rightLengthCell = row.createCell(6);
+        Cell rightScaleCell = row.createCell(7);
+
+        leftColumnCell.setCellStyle(cellStyleHeader(workbook));
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftLengthCell.setCellStyle(cellStyleHeader(workbook));
+        leftScaleCell.setCellStyle(cellStyleHeader(workbook));
+        rightColumnCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightLengthCell.setCellStyle(cellStyleHeader(workbook));
+        rightScaleCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftColumnCell.setCellValue(leftTable.getSchema().getCatalog().getDatabase().getAlias());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
+
+        rightColumnCell.setCellValue(rightTable.getSchema().getCatalog().getDatabase().getAlias());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 4, 7));
     }
 
     private void exportExcel(SchemaDiff schemaDiff) throws Exception {
@@ -263,13 +374,13 @@ public final class DatabaseComparator {
         sheet.setColumnWidth(3, 50 * 256);
 
         int line = -1;
-        createHeaderForSchema(workbook, sheet, ++line, diff);
-        createHeaderForDatabase(workbook, sheet, ++line, diff);
-        createHeaderForTables(workbook, sheet, ++line);
+        createSchemaHeader(workbook, sheet, ++line, diff);
+        createSchemaHeaderForDatabase(workbook, sheet, ++line, diff);
+        createSchemaHeaderForTables(workbook, sheet, ++line);
 
         for (String tableName : diff.getTableNames()) {
             ++line;
-            boolean existsOnBothSides = createCellForTable(diff, workbook, sheet, line, tableName);
+            boolean existsOnBothSides = createSchemaCellForTable(diff, workbook, sheet, line, tableName);
             if (existsOnBothSides) {
                 Table leftTable = diff.getLeftSchema().getTable(tableName);
                 Table rightTable = diff.getRightSchema().getTable(tableName);
@@ -284,10 +395,10 @@ public final class DatabaseComparator {
     }
 
     private void exportTableDiff(TableDiff diff, Workbook workbook) {
-        Table leftSchema = diff.getLeftTable();
-        Table rightSchema = diff.getRightTable();
+        Table leftTable = diff.getLeftTable();
+        Table rightTable = diff.getRightTable();
 
-        Sheet sheet = workbook.createSheet(leftSchema.getName());
+        Sheet sheet = workbook.createSheet(leftTable.getName());
         sheet.setColumnWidth(0, 50 * 256);
         sheet.setColumnWidth(1, 20 * 256);
         sheet.setColumnWidth(2, 10 * 256);
@@ -297,151 +408,14 @@ public final class DatabaseComparator {
         sheet.setColumnWidth(6, 10 * 256);
         sheet.setColumnWidth(7, 10 * 256);
 
-        int line = 0;
-        Row row = sheet.createRow(line);
-        Cell leftColumnCell = row.createCell(0);
-        Cell leftTypeCell = row.createCell(1);
-        Cell leftLengthCell = row.createCell(2);
-        Cell leftScaleCell = row.createCell(3);
-        Cell rightColumnCell = row.createCell(4);
-        Cell rightTypeCell = row.createCell(5);
-        Cell rightLengthCell = row.createCell(6);
-        Cell rightScaleCell = row.createCell(7);
+        int line = -1;
+        createTableHeader(workbook, leftTable, sheet, ++line);
+        createTableHeaderForDatabase(workbook, leftTable, rightTable, sheet, ++line);
+        createTableHeaderForColumns(workbook, sheet, ++line);
 
-        leftColumnCell.setCellStyle(cellStyleHeader(workbook));
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftLengthCell.setCellStyle(cellStyleHeader(workbook));
-        leftScaleCell.setCellStyle(cellStyleHeader(workbook));
-        rightColumnCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightLengthCell.setCellStyle(cellStyleHeader(workbook));
-        rightScaleCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftColumnCell.setCellValue("Table " + leftSchema.getName());
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 7));
-
-        row = sheet.createRow(++line);
-        leftColumnCell = row.createCell(0);
-        leftTypeCell = row.createCell(1);
-        leftLengthCell = row.createCell(2);
-        leftScaleCell = row.createCell(3);
-        rightColumnCell = row.createCell(4);
-        rightTypeCell = row.createCell(5);
-        rightLengthCell = row.createCell(6);
-        rightScaleCell = row.createCell(7);
-
-        leftColumnCell.setCellStyle(cellStyleHeader(workbook));
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftLengthCell.setCellStyle(cellStyleHeader(workbook));
-        leftScaleCell.setCellStyle(cellStyleHeader(workbook));
-        rightColumnCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightLengthCell.setCellStyle(cellStyleHeader(workbook));
-        rightScaleCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftColumnCell.setCellValue(leftSchema.getSchema().getCatalog().getDatabase().getAlias());
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
-
-        rightColumnCell.setCellValue(rightSchema.getSchema().getCatalog().getDatabase().getAlias());
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 4, 7));
-
-        row = sheet.createRow(++line);
-        leftColumnCell = row.createCell(0);
-        leftTypeCell = row.createCell(1);
-        leftLengthCell = row.createCell(2);
-        leftScaleCell = row.createCell(3);
-        rightColumnCell = row.createCell(4);
-        rightTypeCell = row.createCell(5);
-        rightLengthCell = row.createCell(6);
-        rightScaleCell = row.createCell(7);
-
-        leftColumnCell.setCellStyle(cellStyleHeader(workbook));
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftLengthCell.setCellStyle(cellStyleHeader(workbook));
-        leftScaleCell.setCellStyle(cellStyleHeader(workbook));
-        rightColumnCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightLengthCell.setCellStyle(cellStyleHeader(workbook));
-        rightScaleCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftColumnCell.setCellValue("Column");
-        leftTypeCell.setCellValue("Type");
-        leftLengthCell.setCellValue("Size");
-        leftScaleCell.setCellValue("Scale");
-        rightColumnCell.setCellValue("Column");
-        rightTypeCell.setCellValue("Type");
-        rightLengthCell.setCellValue("Size");
-        rightScaleCell.setCellValue("Scale");
-
-        List<Column> all = diff.getAllColumns();
-        List<Column> leftMissing = diff.getLeftMissingColumns();
-        List<Column> rightMissing = diff.getRightMissingColumns();
-
-        for (Column column : all) {
-            String columnName = column.getName();
-            row = sheet.createRow(++line);
-            leftColumnCell = row.createCell(0);
-            leftTypeCell = row.createCell(1);
-            leftLengthCell = row.createCell(2);
-            leftScaleCell = row.createCell(3);
-            rightColumnCell = row.createCell(4);
-            rightTypeCell = row.createCell(5);
-            rightLengthCell = row.createCell(6);
-            rightScaleCell = row.createCell(7);
-
-            boolean different = !areColumnsEquals(columnName, diff.getLeftTable(), diff.getRightTable());
-            boolean missingOnLeft = leftMissing.contains(column);
-            boolean missingOnRight = rightMissing.contains(column);
-
-            if (missingOnLeft) {
-                CellStyle cellStyle = cellStyleRed(workbook);
-                leftColumnCell.setCellStyle(cellStyle);
-                leftTypeCell.setCellStyle(cellStyle);
-                leftLengthCell.setCellStyle(cellStyle);
-                leftScaleCell.setCellStyle(cellStyle);
-                leftColumnCell.setCellValue(MISSING);
-                sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
-            } else {
-                CellStyle cellStyle = different || missingOnRight ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
-                leftColumnCell.setCellStyle(cellStyle);
-                leftTypeCell.setCellStyle(cellStyle);
-                leftLengthCell.setCellStyle(cellStyle);
-                leftScaleCell.setCellStyle(cellStyle);
-
-                Column leftColumn = diff.getLeftTable().getColumn(columnName);
-                leftColumnCell.setCellValue(leftColumn.getName());
-                leftTypeCell.setCellValue(leftColumn.getType());
-                leftLengthCell.setCellValue(leftColumn.getSize());
-                int scale = leftColumn.getScale();
-                if (scale > 0) {
-                    leftScaleCell.setCellValue(scale);
-                }
-            }
-
-            if (missingOnRight) {
-                CellStyle cellStyle = cellStyleRed(workbook);
-                rightColumnCell.setCellStyle(cellStyle);
-                rightTypeCell.setCellStyle(cellStyle);
-                rightLengthCell.setCellStyle(cellStyle);
-                rightScaleCell.setCellStyle(cellStyle);
-                rightColumnCell.setCellValue(MISSING);
-                sheet.addMergedRegion(new CellRangeAddress(line, line, 4, 7));
-            } else {
-                CellStyle cellStyle = different || missingOnLeft ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
-                rightColumnCell.setCellStyle(cellStyle);
-                rightTypeCell.setCellStyle(cellStyle);
-                rightLengthCell.setCellStyle(cellStyle);
-                rightScaleCell.setCellStyle(cellStyle);
-
-                Column rightColumn = diff.getRightTable().getColumn(columnName);
-                rightColumnCell.setCellValue(rightColumn.getName());
-                rightTypeCell.setCellValue(rightColumn.getType());
-                rightLengthCell.setCellValue(rightColumn.getSize());
-                int scale = rightColumn.getScale();
-                if (scale > 0) {
-                    rightScaleCell.setCellValue(scale);
-                }
-            }
+        List<String> columnNames = diff.getColumnNames();
+        for (String columnName : columnNames) {
+            createTableCellForColumn(diff, workbook, sheet, ++line, columnName);
         }
     }
 }

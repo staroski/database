@@ -5,41 +5,38 @@ import java.util.List;
 
 public final class TableDiff {
 
+    private final boolean hasDifferences;
     private final Table leftTable;
     private final Table rightTable;
-    private final List<Column> allColumns;
-    private final List<Column> leftMissingColumns;
-    private final List<Column> rightMissingColumns;
+    private final List<String> columnNames;
 
-    TableDiff(Table leftTable,
-              Table rightTable,
-              List<Column> allColumns,
-              List<Column> leftMissingColumns,
-              List<Column> rightMissingColumns) {
+    TableDiff(Table leftTable, Table rightTable, List<String> columnNames) {
+        Collections.sort(columnNames);
+        boolean hasDifferences = false;
+        for (String name : columnNames) {
+            boolean hasLeft = leftTable.getColumn(name) != null;
+            boolean hasRight = rightTable.getColumn(name) != null;
+            if (hasLeft != hasRight) {
+                hasDifferences = true;
+                break;
+            }
+            if (hasLeft && hasRight && !Table.areColumnsEquals(name, leftTable, rightTable)) {
+                hasDifferences = true;
+                break;
+            }
+        }
+        this.hasDifferences = hasDifferences;
         this.leftTable = leftTable;
         this.rightTable = rightTable;
-        Collections.sort(allColumns);
-        Collections.sort(leftMissingColumns);
-        Collections.sort(rightMissingColumns);
-        this.allColumns = Collections.unmodifiableList(allColumns);
-        this.leftMissingColumns = Collections.unmodifiableList(leftMissingColumns);
-        this.rightMissingColumns = Collections.unmodifiableList(rightMissingColumns);
+        this.columnNames = Collections.unmodifiableList(columnNames);
     }
 
-    public List<Column> getAllColumns() {
-        return allColumns;
-    }
-
-    public List<Column> getLeftMissingColumns() {
-        return leftMissingColumns;
+    public List<String> getColumnNames() {
+        return columnNames;
     }
 
     public Table getLeftTable() {
         return leftTable;
-    }
-
-    public List<Column> getRightMissingColumns() {
-        return rightMissingColumns;
     }
 
     public Table getRightTable() {
@@ -47,6 +44,14 @@ public final class TableDiff {
     }
 
     public boolean hasDifferences() {
-        return !(leftMissingColumns.isEmpty() && rightMissingColumns.isEmpty());
+        return hasDifferences;
+    }
+
+    public boolean isMissingOnLeft(String columnName) {
+        return leftTable.getColumn(columnName) == null;
+    }
+
+    public boolean isMissingOnRight(String columnName) {
+        return rightTable.getColumn(columnName) == null;
     }
 }

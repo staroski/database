@@ -9,10 +9,34 @@ import java.util.List;
 
 public final class Table implements Comparable<Table> {
 
+    static boolean areColumnsEquals(String columnName, Table leftTable, Table rightTable) {
+        Column leftColumn = leftTable.getColumn(columnName);
+        Column rightColumn = rightTable.getColumn(columnName);
+        if (leftColumn == rightColumn) {
+            return true;
+        }
+        if (leftColumn == null) {
+            return false;
+        }
+        if (rightColumn == null) {
+            return false;
+        }
+        if (!leftColumn.getType().equals(rightColumn.getType())) {
+            return false;
+        }
+        if (leftColumn.getSize() != rightColumn.getSize()) {
+            return false;
+        }
+        if (leftColumn.getScale() != rightColumn.getScale()) {
+            return false;
+        }
+        return true;
+    }
     private final Connection connection;
     private final Schema schema;
     private final String name;
     private final String type;
+
     private List<Column> columns;
 
     Table(Connection connection, Schema schema, String name, String type) {
@@ -40,27 +64,22 @@ public final class Table implements Comparable<Table> {
     public TableDiff compareWith(Table other) {
         final Table leftTable = this;
         final Table rightTable = other;
-        final List<Column> allColumns = new LinkedList<Column>();
+        final List<String> columnNames = new LinkedList<String>();
         final List<Column> leftColumns = new LinkedList<Column>(leftTable.getColumns());
         final List<Column> rightColumns = new LinkedList<Column>(rightTable.getColumns());
-        final List<Column> rightMissingColumns = new LinkedList<Column>();
-        final List<Column> leftMissingColumns = new LinkedList<Column>();
         while (!leftColumns.isEmpty()) {
             Column leftColumn = leftColumns.remove(0);
-            allColumns.add(leftColumn);
+            columnNames.add(leftColumn.getName());
             Column rightColumn = rightTable.getColumn(leftColumn.getName());
-            if (rightColumn == null) {
-                rightMissingColumns.add(leftColumn);
-            } else {
+            if (rightColumn != null) {
                 rightColumns.remove(rightColumn);
             }
         }
         while (!rightColumns.isEmpty()) {
             Column rightColumn = rightColumns.remove(0);
-            allColumns.add(rightColumn);
-            leftMissingColumns.add(rightColumn);
+            columnNames.add(rightColumn.getName());
         }
-        return new TableDiff(leftTable, rightTable, allColumns, leftMissingColumns, rightMissingColumns);
+        return new TableDiff(leftTable, rightTable, columnNames);
     }
 
     @Override
@@ -100,7 +119,7 @@ public final class Table implements Comparable<Table> {
         }
         return null;
     }
-
+    
     public List<Column> getColumns() {
         if (columns != null) {
             return columns;
