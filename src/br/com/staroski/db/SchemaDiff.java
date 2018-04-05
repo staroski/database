@@ -5,48 +5,49 @@ import java.util.List;
 
 public final class SchemaDiff {
 
-    private final Schema leftSchema;
-    private final Schema rightSchema;
-    private final List<Table> allTables;
-    private final List<Table> leftMissingTables;
-    private final List<Table> rightMissingTables;
+    private final Schema left;
+    private final Schema right;
+    private final List<String> tablesNames;
+    private final boolean hasDifferences;
 
-    SchemaDiff(Schema leftSchema,
-               Schema rightSchema,
-               List<Table> allTables,
-               List<Table> leftMissingTables,
-               List<Table> rightMissingTables) {
-        this.leftSchema = leftSchema;
-        this.rightSchema = rightSchema;
-        Collections.sort(allTables);
-        Collections.sort(leftMissingTables);
-        Collections.sort(rightMissingTables);
-        this.allTables = Collections.unmodifiableList(allTables);
-        this.leftMissingTables = Collections.unmodifiableList(leftMissingTables);
-        this.rightMissingTables = Collections.unmodifiableList(rightMissingTables);
-    }
-
-    public List<Table> getAllTables() {
-        return allTables;
-    }
-
-    public List<Table> getLeftMissingTables() {
-        return leftMissingTables;
+    SchemaDiff(Schema leftSchema, Schema rightSchema, List<String> tableNames) {
+        Collections.sort(tableNames);
+        boolean hasDifferences = false;
+        for (String table : tableNames) {
+            boolean hasLeft = leftSchema.getTable(table) != null;
+            boolean hasRight = leftSchema.getTable(table) != null;
+            if (hasLeft != hasRight) {
+                hasDifferences = true;
+                break;
+            }
+        }
+        this.left = leftSchema;
+        this.right = rightSchema;
+        this.tablesNames = Collections.unmodifiableList(tableNames);
+        this.hasDifferences = hasDifferences;
     }
 
     public Schema getLeftSchema() {
-        return leftSchema;
-    }
-
-    public List<Table> getRightMissingTables() {
-        return rightMissingTables;
+        return left;
     }
 
     public Schema getRightSchema() {
-        return rightSchema;
+        return right;
+    }
+
+    public List<String> getTableNames() {
+        return tablesNames;
     }
 
     public boolean hasDifferences() {
-        return !(leftMissingTables.isEmpty() && rightMissingTables.isEmpty());
+        return hasDifferences;
+    }
+
+    public boolean isMissingOnLeft(String table) {
+        return left.getTable(table) == null;
+    }
+
+    public boolean isMissingOnRight(String table) {
+        return right.getTable(table) == null;
     }
 }

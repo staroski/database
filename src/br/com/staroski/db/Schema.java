@@ -23,27 +23,22 @@ public final class Schema {
     public SchemaDiff compareWith(Schema other) {
         final Schema leftSchema = this;
         final Schema rightSchema = other;
-        final List<Table> allTables = new LinkedList<Table>();
+        final List<String> tableNames = new LinkedList<String>();
         final List<Table> leftTables = new LinkedList<Table>(leftSchema.getTables());
         final List<Table> rightTables = new LinkedList<Table>(rightSchema.getTables());
-        final List<Table> rightMissingTables = new LinkedList<Table>();
-        final List<Table> leftMissingTables = new LinkedList<Table>();
         while (!leftTables.isEmpty()) {
             Table leftTable = leftTables.remove(0);
-            allTables.add(leftTable);
+            tableNames.add(leftTable.getName());
             Table rightTable = rightSchema.getTable(leftTable.getName());
-            if (rightTable == null) {
-                rightMissingTables.add(leftTable);
-            } else {
+            if (rightTable != null) {
                 rightTables.remove(rightTable);
             }
         }
         while (!rightTables.isEmpty()) {
             Table rightTable = rightTables.remove(0);
-            allTables.add(rightTable);
-            leftMissingTables.add(rightTable);
+            tableNames.add(rightTable.getName());
         }
-        return new SchemaDiff(leftSchema, rightSchema, allTables, leftMissingTables, rightMissingTables);
+        return new SchemaDiff(leftSchema, rightSchema, tableNames);
     }
 
     public Catalog getCatalog() {

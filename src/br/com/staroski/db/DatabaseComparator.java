@@ -43,16 +43,19 @@ public final class DatabaseComparator {
     public void compare(Database leftDatabase, Database rightDatabase, String catalogName, String schemaName) throws Exception {
         try {
             debug("comparing database %s with %s%n", leftDatabase.getAlias(), rightDatabase.getAlias());
+
             Catalog leftCatalog = leftDatabase.getCatalog(catalogName);
             Schema leftSchema = leftCatalog.getSchema(schemaName);
 
             Catalog rightCatalog = rightDatabase.getCatalog(catalogName);
             Schema rightSchema = rightCatalog.getSchema(schemaName);
-            debug("comparing schema %s%n", leftSchema.getName());
 
+            debug("comparing schema %s%n", leftSchema.getName());
             SchemaDiff diff = leftSchema.compareWith(rightSchema);
+            debug("comparison finished%n");
+
+            debug("exporting excel report%n");
             exportExcel(diff);
-            debug("finished%n");
             debug("report saved at: \"%s\"%n", excelFile.getAbsolutePath());
         } finally {
             leftDatabase.disconnect();
@@ -145,6 +148,101 @@ public final class DatabaseComparator {
         return yellow;
     }
 
+    private boolean createCellForTable(SchemaDiff diff, Workbook workbook, Sheet sheet, int line, String tableName) {
+        Row row = sheet.createRow(line);
+        Cell leftTypeCell = row.createCell(0);
+        Cell leftTableCell = row.createCell(1);
+        Cell rightTypeCell = row.createCell(2);
+        Cell rightTableCell = row.createCell(3);
+
+        boolean missingOnLeft = diff.isMissingOnLeft(tableName);
+        boolean missingOnRight = diff.isMissingOnRight(tableName);
+        if (missingOnLeft) {
+            leftTypeCell.setCellStyle(cellStyleRed(workbook));
+            leftTypeCell.setCellValue(MISSING);
+            leftTableCell.setCellStyle(cellStyleRed(workbook));
+            sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 1));
+        } else {
+            Table table = diff.getRightSchema().getTable(tableName);
+            CellStyle cellStyle = missingOnRight ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
+            leftTypeCell.setCellStyle(cellStyle);
+            leftTypeCell.setCellValue(table.getType());
+            leftTableCell.setCellStyle(cellStyle);
+            leftTableCell.setCellValue(table.getName());
+        }
+
+        if (missingOnRight) {
+            rightTypeCell.setCellStyle(cellStyleRed(workbook));
+            rightTypeCell.setCellValue(MISSING);
+            rightTableCell.setCellStyle(cellStyleRed(workbook));
+            sheet.addMergedRegion(new CellRangeAddress(line, line, 2, 3));
+        } else {
+            Table table = diff.getLeftSchema().getTable(tableName);
+            CellStyle cellStyle = missingOnLeft ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
+            rightTypeCell.setCellStyle(cellStyle);
+            rightTypeCell.setCellValue(table.getType());
+            rightTableCell.setCellStyle(cellStyle);
+            rightTableCell.setCellValue(table.getName());
+        }
+        return !missingOnLeft && !missingOnRight;
+    }
+
+    private void createHeaderForDatabase(Workbook workbook, Sheet sheet, int line, SchemaDiff diff) {
+        Schema leftSchema = diff.getLeftSchema();
+        Schema rightSchema = diff.getRightSchema();
+
+        Row row = sheet.createRow(line);
+        Cell leftTypeCell = row.createCell(0);
+        Cell leftTableCell = row.createCell(1);
+        Cell rightTypeCell = row.createCell(2);
+        Cell rightTableCell = row.createCell(3);
+
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftTableCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightTableCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftTypeCell.setCellValue(leftSchema.getCatalog().getDatabase().getAlias());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 1));
+
+        rightTypeCell.setCellValue(rightSchema.getCatalog().getDatabase().getAlias());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 2, 3));
+    }
+
+    private void createHeaderForSchema(Workbook workbook, Sheet sheet, int line, SchemaDiff diff) {
+        Row row = sheet.createRow(line);
+        Cell leftTypeCell = row.createCell(0);
+        Cell leftTableCell = row.createCell(1);
+        Cell rightTypeCell = row.createCell(2);
+        Cell rightTableCell = row.createCell(3);
+
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftTableCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightTableCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftTypeCell.setCellValue("Schema " + diff.getLeftSchema().getName());
+        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
+    }
+
+    private void createHeaderForTables(Workbook workbook, Sheet sheet, int line) {
+        Row row = sheet.createRow(line);
+        Cell leftTypeCell = row.createCell(0);
+        Cell leftTableCell = row.createCell(1);
+        Cell rightTypeCell = row.createCell(2);
+        Cell rightTableCell = row.createCell(3);
+
+        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
+        leftTableCell.setCellStyle(cellStyleHeader(workbook));
+        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
+        rightTableCell.setCellStyle(cellStyleHeader(workbook));
+
+        leftTypeCell.setCellValue("Type");
+        leftTableCell.setCellValue("Name");
+        rightTypeCell.setCellValue("Type");
+        rightTableCell.setCellValue("Name");
+    }
+
     private void exportExcel(SchemaDiff schemaDiff) throws Exception {
         Workbook workbook = new HSSFWorkbook();
         List<TableDiff> tableDiffs = exportSchemaDiff(schemaDiff, workbook);
@@ -157,110 +255,25 @@ public final class DatabaseComparator {
 
     private List<TableDiff> exportSchemaDiff(SchemaDiff diff, Workbook workbook) {
         List<TableDiff> tableDiffs = new LinkedList<TableDiff>();
-        String schemaName = diff.getLeftSchema().getName();
 
-        Sheet sheet = workbook.createSheet(schemaName);
+        Sheet sheet = workbook.createSheet(diff.getLeftSchema().getName());
         sheet.setColumnWidth(0, 20 * 256);
         sheet.setColumnWidth(1, 50 * 256);
         sheet.setColumnWidth(2, 20 * 256);
         sheet.setColumnWidth(3, 50 * 256);
 
-        Schema leftSchema = diff.getLeftSchema();
-        Schema rightSchema = diff.getRightSchema();
+        int line = -1;
+        createHeaderForSchema(workbook, sheet, ++line, diff);
+        createHeaderForDatabase(workbook, sheet, ++line, diff);
+        createHeaderForTables(workbook, sheet, ++line);
 
-        int line = 0;
-        Row row = sheet.createRow(line);
-        Cell leftTypeCell = row.createCell(0);
-        Cell leftTableCell = row.createCell(1);
-        Cell rightTypeCell = row.createCell(2);
-        Cell rightTableCell = row.createCell(3);
-
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftTableCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightTableCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftTypeCell.setCellValue("Schema " + schemaName);
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 3));
-
-        row = sheet.createRow(++line);
-        leftTypeCell = row.createCell(0);
-        leftTableCell = row.createCell(1);
-        rightTypeCell = row.createCell(2);
-        rightTableCell = row.createCell(3);
-
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftTableCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightTableCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftTypeCell.setCellValue(leftSchema.getCatalog().getDatabase().getAlias());
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 1));
-
-        rightTypeCell.setCellValue(rightSchema.getCatalog().getDatabase().getAlias());
-        sheet.addMergedRegion(new CellRangeAddress(line, line, 2, 3));
-
-        row = sheet.createRow(++line);
-        leftTypeCell = row.createCell(0);
-        leftTableCell = row.createCell(1);
-        rightTypeCell = row.createCell(2);
-        rightTableCell = row.createCell(3);
-
-        leftTypeCell.setCellStyle(cellStyleHeader(workbook));
-        leftTableCell.setCellStyle(cellStyleHeader(workbook));
-        rightTypeCell.setCellStyle(cellStyleHeader(workbook));
-        rightTableCell.setCellStyle(cellStyleHeader(workbook));
-
-        leftTypeCell.setCellValue("Type");
-        leftTableCell.setCellValue("Name");
-        rightTypeCell.setCellValue("Type");
-        rightTableCell.setCellValue("Name");
-
-        List<Table> all = diff.getAllTables();
-        List<Table> leftMissing = diff.getLeftMissingTables();
-        List<Table> rightMissing = diff.getRightMissingTables();
-
-        for (Table table : all) {
-            row = sheet.createRow(++line);
-            leftTypeCell = row.createCell(0);
-            leftTableCell = row.createCell(1);
-            rightTypeCell = row.createCell(2);
-            rightTableCell = row.createCell(3);
-
-            boolean missingOnLeft = leftMissing.contains(table);
-            boolean missingOnRight = rightMissing.contains(table);
-
-            if (missingOnLeft) {
-                leftTypeCell.setCellStyle(cellStyleRed(workbook));
-                leftTypeCell.setCellValue(MISSING);
-                leftTableCell.setCellStyle(cellStyleRed(workbook));
-                sheet.addMergedRegion(new CellRangeAddress(line, line, 0, 1));
-            } else {
-                CellStyle cellStyle = missingOnRight ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
-                leftTypeCell.setCellStyle(cellStyle);
-                leftTypeCell.setCellValue(table.getType());
-                leftTableCell.setCellStyle(cellStyle);
-                leftTableCell.setCellValue(table.getName());
-            }
-
-            if (missingOnRight) {
-                rightTypeCell.setCellStyle(cellStyleRed(workbook));
-                rightTypeCell.setCellValue(MISSING);
-                rightTableCell.setCellStyle(cellStyleRed(workbook));
-                sheet.addMergedRegion(new CellRangeAddress(line, line, 2, 3));
-            } else {
-                CellStyle cellStyle = missingOnLeft ? cellStyleYellow(workbook) : cellStyleGreen(workbook);
-                rightTypeCell.setCellStyle(cellStyle);
-                rightTypeCell.setCellValue(table.getType());
-                rightTableCell.setCellStyle(cellStyle);
-                rightTableCell.setCellValue(table.getName());
-            }
-
-            if (!missingOnLeft && !missingOnRight) {
-                String name = table.getName();
-                Table leftTable = leftSchema.getTable(name);
-                Table rightTable = rightSchema.getTable(name);
-                debug("comparing table %s%n", leftTable.getName());
+        for (String tableName : diff.getTableNames()) {
+            ++line;
+            boolean existsOnBothSides = createCellForTable(diff, workbook, sheet, line, tableName);
+            if (existsOnBothSides) {
+                Table leftTable = diff.getLeftSchema().getTable(tableName);
+                Table rightTable = diff.getRightSchema().getTable(tableName);
+                debug("comparing table %s%n", tableName);
                 TableDiff tableDiff = leftTable.compareWith(rightTable);
                 if (tableDiff.hasDifferences()) {
                     tableDiffs.add(tableDiff);
