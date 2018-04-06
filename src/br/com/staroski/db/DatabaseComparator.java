@@ -41,9 +41,13 @@ public final class DatabaseComparator {
     }
 
     public void compareSchemas(Schema leftSchema, Schema rightSchema) throws Exception {
-        debug("comparing schema %s with %s%n", leftSchema.getName(), rightSchema.getName());
+        debug("comparing schema %s.%s with %s.%s...",
+              leftSchema.getCatalog().getDatabase().getAlias(),
+              leftSchema.getName(),
+              rightSchema.getCatalog().getDatabase().getAlias(),
+              rightSchema.getName());
         SchemaDiff diff = leftSchema.compareWith(rightSchema);
-        debug("comparison finished%n");
+        debug("    done!%n");
 
         debug("exporting excel report%n");
         exportExcel(diff);
@@ -368,10 +372,10 @@ public final class DatabaseComparator {
         List<TableDiff> tableDiffs = new LinkedList<TableDiff>();
 
         Sheet sheet = workbook.createSheet(diff.getLeftSchema().getName());
-        sheet.setColumnWidth(0, 20 * 256);
-        sheet.setColumnWidth(1, 50 * 256);
-        sheet.setColumnWidth(2, 20 * 256);
-        sheet.setColumnWidth(3, 50 * 256);
+        sheet.setColumnWidth(0, 25 * 256);
+        sheet.setColumnWidth(1, 55 * 256);
+        sheet.setColumnWidth(2, 25 * 256);
+        sheet.setColumnWidth(3, 55 * 256);
 
         int line = -1;
         createSchemaHeader(workbook, sheet, ++line, diff);
@@ -384,8 +388,9 @@ public final class DatabaseComparator {
             if (existsOnBothSides) {
                 Table leftTable = diff.getLeftSchema().getTable(tableName);
                 Table rightTable = diff.getRightSchema().getTable(tableName);
-                debug("comparing table %s%n", tableName);
+                debug("comparing table %s...", tableName);
                 TableDiff tableDiff = leftTable.compareWith(rightTable);
+                debug("    done!%n", tableName);
                 if (tableDiff.hasDifferences()) {
                     tableDiffs.add(tableDiff);
                 }
@@ -399,11 +404,11 @@ public final class DatabaseComparator {
         Table rightTable = diff.getRightTable();
 
         Sheet sheet = workbook.createSheet(leftTable.getName());
-        sheet.setColumnWidth(0, 50 * 256);
+        sheet.setColumnWidth(0, 40 * 256);
         sheet.setColumnWidth(1, 20 * 256);
         sheet.setColumnWidth(2, 10 * 256);
         sheet.setColumnWidth(3, 10 * 256);
-        sheet.setColumnWidth(4, 50 * 256);
+        sheet.setColumnWidth(4, 40 * 256);
         sheet.setColumnWidth(5, 20 * 256);
         sheet.setColumnWidth(6, 10 * 256);
         sheet.setColumnWidth(7, 10 * 256);
