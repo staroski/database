@@ -30,7 +30,7 @@ public final class Catalog {
 
     public Schema getSchema(String name) {
         for (Schema schema : getSchemas()) {
-            if (Strings.areEqualsIgnoreCase(name, schema.getName())) {
+            if (Utils.areEqualsIgnoreCase(name, schema.getName())) {
                 return schema;
             }
         }
@@ -53,7 +53,7 @@ public final class Catalog {
                 } catch (Exception e) {
                     catalogName = result.getString("TABLE_CATALOG"); // but many return TABLE_CATALOG
                 }
-                if (!Strings.areEqualsIgnoreCase(thisCatalogName, catalogName)) {
+                if (!Utils.areEqualsIgnoreCase(thisCatalogName, catalogName)) {
                     continue;
                 }
                 list.add(new Schema(connection, this, schemaName));

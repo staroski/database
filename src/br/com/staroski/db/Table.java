@@ -3,41 +3,48 @@ package br.com.staroski.db;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public final class Table implements Comparable<Table> {
 
-    static boolean areColumnsEquals(String columnName, Table leftTable, Table rightTable) {
-        Column leftColumn = leftTable.getColumn(columnName);
-        Column rightColumn = rightTable.getColumn(columnName);
-        if (leftColumn == rightColumn) {
-            return true;
-        }
-        if (leftColumn == null) {
-            return false;
-        }
-        if (rightColumn == null) {
-            return false;
-        }
-        if (!leftColumn.getType().equals(rightColumn.getType())) {
-            return false;
-        }
-        if (leftColumn.getSize() != rightColumn.getSize()) {
-            return false;
-        }
-        if (leftColumn.getScale() != rightColumn.getScale()) {
-            return false;
+    static boolean areColumnsEquals(String columnName, List<Table> tables) {
+        Column column1 = tables.get(0).getColumn(columnName);
+        for (int i = 1; i < tables.size(); i++) {
+            Column columnN = tables.get(i).getColumn(columnName);
+            if (column1 == columnN) {
+                continue;
+            }
+            if (column1 == null) {
+                return false;
+            }
+            if (columnN == null) {
+                return false;
+            }
+            if (!column1.getType().equals(columnN.getType())) {
+                return false;
+            }
+            if (column1.getSize() != columnN.getSize()) {
+                return false;
+            }
+            if (column1.getScale() != columnN.getScale()) {
+                return false;
+            }
         }
         return true;
     }
+
     private final Connection connection;
     private final Schema schema;
     private final String name;
     private final String type;
 
     private List<Column> columns;
+    private Map<String, Column> columnMap;
 
     Table(Connection connection, Schema schema, String name, String type) {
         this.connection = connection;
@@ -61,25 +68,19 @@ public final class Table implements Comparable<Table> {
         return diff;
     }
 
-    public TableDiff compareWith(Table other) {
-        final Table leftTable = this;
-        final Table rightTable = other;
-        final List<String> columnNames = new LinkedList<String>();
-        final List<Column> leftColumns = new LinkedList<Column>(leftTable.getColumns());
-        final List<Column> rightColumns = new LinkedList<Column>(rightTable.getColumns());
-        while (!leftColumns.isEmpty()) {
-            Column leftColumn = leftColumns.remove(0);
-            columnNames.add(leftColumn.getName());
-            Column rightColumn = rightTable.getColumn(leftColumn.getName());
-            if (rightColumn != null) {
-                rightColumns.remove(rightColumn);
-            }
-        }
-        while (!rightColumns.isEmpty()) {
-            Column rightColumn = rightColumns.remove(0);
-            columnNames.add(rightColumn.getName());
-        }
-        return new TableDiff(leftTable, rightTable, columnNames);
+    public TableDiff compareWith(Collection<Table> otherTables) {
+        List<Table> tables = new LinkedList<Table>();
+        tables.add(this);
+        tables.addAll(otherTables);
+        return new TableDiff(tables);
+    }
+
+    public TableDiff compareWith(Table other, Table... moreTables) {
+        return compareWith(Utils.asList(other, moreTables));
+    }
+
+    public boolean contains(String columnName) {
+        return getColumn(columnName) != null;
     }
 
     @Override
@@ -112,19 +113,18 @@ public final class Table implements Comparable<Table> {
     }
 
     public Column getColumn(String name) {
-        for (Column column : getColumns()) {
-            if (Strings.areEqualsIgnoreCase(name, column.getName())) {
-                return column;
-            }
+        if (getColumns().isEmpty()) {
+            return null;
         }
-        return null;
+        return columnMap.get(name);
     }
-    
+
     public List<Column> getColumns() {
         if (columns != null) {
             return columns;
         }
         List<Column> list = new LinkedList<Column>();
+        columnMap = new HashMap<String, Column>();
         Schema thisSchema = getSchema();
         try {
             String thisCatalogName = thisSchema.getCatalog().getName();
@@ -135,9 +135,9 @@ public final class Table implements Comparable<Table> {
                 String catalogName = result.getString("TABLE_CAT");
                 String schemaName = result.getString("TABLE_SCHEM");
                 String tableName = result.getString("TABLE_NAME");
-                if (!Strings.areEqualsIgnoreCase(thisCatalogName, catalogName)
-                        || !Strings.areEqualsIgnoreCase(thisSchemaName, schemaName)
-                        || !Strings.areEqualsIgnoreCase(thisTableName, tableName)) {
+                if (!Utils.areEqualsIgnoreCase(thisCatalogName, catalogName)
+                        || !Utils.areEqualsIgnoreCase(thisSchemaName, schemaName)
+                        || !Utils.areEqualsIgnoreCase(thisTableName, tableName)) {
                     continue;
                 }
                 String columnName = result.getString("COLUMN_NAME");
@@ -145,7 +145,9 @@ public final class Table implements Comparable<Table> {
                 int size = result.getInt("COLUMN_SIZE");
                 int decimalDigits = result.getInt("DECIMAL_DIGITS");
                 int javaSqlType = result.getInt("DATA_TYPE");
-                list.add(new Column(columnName, columnType, size, decimalDigits, javaSqlType));
+                Column column = new Column(columnName, columnType, size, decimalDigits, javaSqlType);
+                list.add(column);
+                columnMap.put(columnName, column);
             }
         } catch (SQLException e) {
             throw UncheckedException.wrap(e);

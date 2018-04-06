@@ -1,53 +1,64 @@
 package br.com.staroski.db;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 public final class SchemaDiff {
 
-    private final boolean hasDifferences;
-    private final Schema leftSchema;
-    private final Schema rightSchema;
-    private final List<String> tablesNames;
+    public final boolean hasDifferences;
+    public final List<String> tableNames;
+    public final List<Schema> schemas;
 
-    SchemaDiff(Schema leftSchema, Schema rightSchema, List<String> tableNames) {
-        Collections.sort(tableNames);
-        boolean hasDifferences = false;
-        for (String name : tableNames) {
-            boolean hasLeft = leftSchema.getTable(name) != null;
-            boolean hasRight = rightSchema.getTable(name) != null;
-            if (hasLeft != hasRight) {
-                hasDifferences = true;
-                break;
+    SchemaDiff(List<Schema> schemas) {
+        this.schemas = schemas;
+        this.tableNames = getTableNames(schemas);
+        this.hasDifferences = checkDifferences(tableNames);
+    }
+
+    public boolean allSchemasContains(String tableName) {
+        for (Schema schema : schemas) {
+            if (!schema.contains(tableName)) {
+                return false;
             }
         }
-        this.hasDifferences = hasDifferences;
-        this.leftSchema = leftSchema;
-        this.rightSchema = rightSchema;
-        this.tablesNames = Collections.unmodifiableList(tableNames);
+        return true;
     }
 
-    public Schema getLeftSchema() {
-        return leftSchema;
+    public List<Schema> getSchemasWithTable(String tableName) {
+        List<Schema> containing = new LinkedList<Schema>();
+        for (Schema schema : schemas) {
+            if (schema.contains(tableName)) {
+                containing.add(schema);
+            }
+        }
+        return containing;
     }
 
-    public Schema getRightSchema() {
-        return rightSchema;
+    private boolean checkDifferences(List<String> tableNames) {
+        for (String tableName : tableNames) {
+            boolean firstContains = schemas.get(0).contains(tableName);
+            for (int i = 1; i < schemas.size(); i++) {
+                boolean otherContains = schemas.get(i).contains(tableName);
+                if (firstContains != otherContains) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    public List<String> getTableNames() {
-        return tablesNames;
-    }
-
-    public boolean hasDifferences() {
-        return hasDifferences;
-    }
-
-    public boolean isMissingOnLeft(String tableName) {
-        return leftSchema.getTable(tableName) == null;
-    }
-
-    public boolean isMissingOnRight(String tableName) {
-        return rightSchema.getTable(tableName) == null;
+    private List<String> getTableNames(List<Schema> schemas) {
+        final List<String> names = new LinkedList<String>();
+        for (Schema schema : schemas) {
+            for (Table table : schema.getTables()) {
+                String name = table.getName();
+                if (!names.contains(name)) {
+                    names.add(name);
+                }
+            }
+        }
+        Collections.sort(names);
+        return Collections.unmodifiableList(names);
     }
 }

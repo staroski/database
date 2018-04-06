@@ -56,7 +56,7 @@ public final class Database {
 
     public Catalog getCatalog(String name) {
         for (Catalog catalog : getCatalogs()) {
-            if (Strings.areEqualsIgnoreCase(name, catalog.getName())) {
+            if (Utils.areEqualsIgnoreCase(name, catalog.getName())) {
                 return catalog;
             }
         }

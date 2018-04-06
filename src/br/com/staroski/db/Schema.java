@@ -3,16 +3,21 @@ package br.com.staroski.db;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public final class Schema {
 
     private final Connection connection;
     private final Catalog catalog;
     private final String name;
+
     private List<Table> tables;
+    private Map<String, Table> tableMap;
 
     Schema(Connection connection, Catalog catalog, String name) {
         this.connection = connection;
@@ -20,25 +25,19 @@ public final class Schema {
         this.name = name;
     }
 
-    public SchemaDiff compareWith(Schema other) {
-        final Schema leftSchema = this;
-        final Schema rightSchema = other;
-        final List<String> tableNames = new LinkedList<String>();
-        final List<Table> leftTables = new LinkedList<Table>(leftSchema.getTables());
-        final List<Table> rightTables = new LinkedList<Table>(rightSchema.getTables());
-        while (!leftTables.isEmpty()) {
-            Table leftTable = leftTables.remove(0);
-            tableNames.add(leftTable.getName());
-            Table rightTable = rightSchema.getTable(leftTable.getName());
-            if (rightTable != null) {
-                rightTables.remove(rightTable);
-            }
-        }
-        while (!rightTables.isEmpty()) {
-            Table rightTable = rightTables.remove(0);
-            tableNames.add(rightTable.getName());
-        }
-        return new SchemaDiff(leftSchema, rightSchema, tableNames);
+    public SchemaDiff compareWith(Collection<Schema> otherSchemas) {
+        List<Schema> schemas = new LinkedList<Schema>();
+        schemas.add(this);
+        schemas.addAll(otherSchemas);
+        return new SchemaDiff(schemas);
+    }
+
+    public SchemaDiff compareWith(Schema other, Schema... moreSchemas) {
+        return compareWith(Utils.asList(other, moreSchemas));
+    }
+
+    public boolean contains(String tableName) {
+        return getTable(tableName) != null;
     }
 
     public Catalog getCatalog() {
@@ -50,12 +49,10 @@ public final class Schema {
     }
 
     public Table getTable(String name) {
-        for (Table table : getTables()) {
-            if (Strings.areEqualsIgnoreCase(name, table.getName())) {
-                return table;
-            }
+        if (getTables().isEmpty()) {
+            return null;
         }
-        return null;
+        return tableMap.get(name);
     }
 
     public List<Table> getTables() {
@@ -63,6 +60,7 @@ public final class Schema {
             return tables;
         }
         List<Table> list = new LinkedList<Table>();
+        tableMap = new HashMap<String, Table>();
         try {
             String thisCatalogName = getCatalog().getName();
             String thisSchemaName = getName();
@@ -70,13 +68,15 @@ public final class Schema {
             while (result.next()) {
                 String catalogName = result.getString("TABLE_CAT");
                 String schemaName = result.getString("TABLE_SCHEM");
-                if (!Strings.areEqualsIgnoreCase(thisCatalogName, catalogName)
-                        || !Strings.areEqualsIgnoreCase(thisSchemaName, schemaName)) {
+                if (!Utils.areEqualsIgnoreCase(thisCatalogName, catalogName)
+                        || !Utils.areEqualsIgnoreCase(thisSchemaName, schemaName)) {
                     continue;
                 }
                 String tableName = result.getString("TABLE_NAME");
                 String tableType = result.getString("TABLE_TYPE");
-                list.add(new Table(connection, this, tableName, tableType));
+                Table table = new Table(connection, this, tableName, tableType);
+                list.add(table);
+                tableMap.put(tableName, table);
             }
         } catch (SQLException e) {
             throw UncheckedException.wrap(e);

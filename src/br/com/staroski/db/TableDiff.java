@@ -1,57 +1,60 @@
 package br.com.staroski.db;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 public final class TableDiff {
 
-    private final boolean hasDifferences;
-    private final Table leftTable;
-    private final Table rightTable;
-    private final List<String> columnNames;
+    public final boolean hasDifferences;
+    public final List<String> columnNames;
+    public final List<Table> tables;
 
-    TableDiff(Table leftTable, Table rightTable, List<String> columnNames) {
-        Collections.sort(columnNames);
-        boolean hasDifferences = false;
-        for (String name : columnNames) {
-            boolean hasLeft = leftTable.getColumn(name) != null;
-            boolean hasRight = rightTable.getColumn(name) != null;
-            if (hasLeft != hasRight) {
-                hasDifferences = true;
-                break;
-            }
-            if (hasLeft && hasRight && !Table.areColumnsEquals(name, leftTable, rightTable)) {
-                hasDifferences = true;
-                break;
+    TableDiff(List<Table> tables) {
+        this.tables = tables;
+        this.columnNames = getColumnNames(tables);
+        this.hasDifferences = checkDifferences(columnNames);
+    }
+
+    public boolean allTablesContains(String columnName) {
+        for (Table table : tables) {
+            if (!table.contains(columnName)) {
+                return false;
             }
         }
-        this.hasDifferences = hasDifferences;
-        this.leftTable = leftTable;
-        this.rightTable = rightTable;
-        this.columnNames = Collections.unmodifiableList(columnNames);
+        return true;
     }
 
-    public List<String> getColumnNames() {
-        return columnNames;
+    public List<Table> getTablesWithColumn(String columnName) {
+        List<Table> containing = new LinkedList<Table>();
+        for (Table table : tables) {
+            if (table.contains(columnName)) {
+                containing.add(table);
+            }
+        }
+        return containing;
     }
 
-    public Table getLeftTable() {
-        return leftTable;
+    private boolean checkDifferences(List<String> columnNames) {
+        for (String columnName : columnNames) {
+            if (!allTablesContains(columnName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public Table getRightTable() {
-        return rightTable;
-    }
-
-    public boolean hasDifferences() {
-        return hasDifferences;
-    }
-
-    public boolean isMissingOnLeft(String columnName) {
-        return leftTable.getColumn(columnName) == null;
-    }
-
-    public boolean isMissingOnRight(String columnName) {
-        return rightTable.getColumn(columnName) == null;
+    private List<String> getColumnNames(List<Table> tables) {
+        final List<String> names = new LinkedList<String>();
+        for (Table table : tables) {
+            for (Column column : table.getColumns()) {
+                String name = column.getName();
+                if (!names.contains(name)) {
+                    names.add(name);
+                }
+            }
+        }
+        Collections.sort(names);
+        return Collections.unmodifiableList(names);
     }
 }
