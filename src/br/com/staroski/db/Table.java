@@ -10,33 +10,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-public final class Table implements Comparable<Table> {
+import br.com.staroski.UncheckedException;
+import br.com.staroski.Utils;
 
-    static boolean areColumnsEquals(String columnName, List<Table> tables) {
-        Column column1 = tables.get(0).getColumn(columnName);
-        for (int i = 1; i < tables.size(); i++) {
-            Column columnN = tables.get(i).getColumn(columnName);
-            if (column1 == columnN) {
-                continue;
-            }
-            if (column1 == null) {
-                return false;
-            }
-            if (columnN == null) {
-                return false;
-            }
-            if (!column1.getType().equals(columnN.getType())) {
-                return false;
-            }
-            if (column1.getSize() != columnN.getSize()) {
-                return false;
-            }
-            if (column1.getScale() != columnN.getScale()) {
-                return false;
-            }
-        }
-        return true;
-    }
+public final class Table implements Comparable<Table> {
 
     private final Connection connection;
     private final Schema schema;

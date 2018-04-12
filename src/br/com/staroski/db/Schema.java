@@ -10,6 +10,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import br.com.staroski.UncheckedException;
+import br.com.staroski.Utils;
+
 public final class Schema {
 
     private final Connection connection;

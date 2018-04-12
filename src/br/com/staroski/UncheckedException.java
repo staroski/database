@@ -1,12 +1,12 @@
-package br.com.staroski.db;
+package br.com.staroski;
 
 public final class UncheckedException extends RuntimeException {
 
     private static final long serialVersionUID = 1;
 
-    public static UncheckedException wrap(Throwable t) {
-        if (t instanceof UncheckedException) {
-            return (UncheckedException) t;
+    public static RuntimeException wrap(Throwable t) {
+        if (t instanceof RuntimeException) {
+            return (RuntimeException) t;
         }
         return new UncheckedException(t);
     }

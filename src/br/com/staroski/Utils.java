@@ -1,4 +1,4 @@
-package br.com.staroski.db;
+package br.com.staroski;
 
 import java.util.Collections;
 import java.util.LinkedList;

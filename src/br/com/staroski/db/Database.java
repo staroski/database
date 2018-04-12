@@ -8,6 +8,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import br.com.staroski.UncheckedException;
+import br.com.staroski.Utils;
+
 public final class Database {
 
     public static Database connect(String driver, String protocol, String host, int port, String databaseName, String user, String pass) {

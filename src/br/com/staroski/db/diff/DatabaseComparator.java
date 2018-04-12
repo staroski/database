@@ -1,7 +1,8 @@
-package br.com.staroski.db;
+package br.com.staroski.db.diff;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -18,19 +19,54 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 
+import br.com.staroski.UncheckedException;
+import br.com.staroski.Utils;
+import br.com.staroski.db.Column;
+import br.com.staroski.db.Schema;
+import br.com.staroski.db.SchemaDiff;
+import br.com.staroski.db.Table;
+import br.com.staroski.db.TableDiff;
+
 public final class DatabaseComparator {
 
     private static final String MISSING = "MISSING";
+
+    private static boolean areColumnsEquals(String columnName, List<Table> tables) {
+        Column column1 = tables.get(0).getColumn(columnName);
+        for (int i = 1; i < tables.size(); i++) {
+            Column columnN = tables.get(i).getColumn(columnName);
+            if (column1 == columnN) {
+                continue;
+            }
+            if (column1 == null) {
+                return false;
+            }
+            if (columnN == null) {
+                return false;
+            }
+            if (!column1.getType().equals(columnN.getType())) {
+                return false;
+            }
+            if (column1.getSize() != columnN.getSize()) {
+                return false;
+            }
+            if (column1.getScale() != columnN.getScale()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     private static void debug(String format, Object... args) {
         System.out.printf(format, args);
     }
 
     private final File excelFile;
-    private CellStyle green;
-    private CellStyle red;
-    private CellStyle yellow;
+
     private CellStyle header;
+    private CellStyle green;
+    private CellStyle yellow;
+    private CellStyle red;
 
     private String[] schemaColumnNames = new String[] { "Type", "Name" };
     private int[] schemaColumnWidths = new int[] { 25, 55 };
@@ -46,7 +82,7 @@ public final class DatabaseComparator {
         this(new File(excelFile));
     }
 
-    public void compareSchemas(Schema schema1, Schema schema2, Schema... schemaN) throws Exception {
+    public void compareSchemas(Schema schema1, Schema schema2, Schema... schemaN) {
         StringBuilder text = new StringBuilder();
         for (Schema schema : Utils.asList(schema1, schema2, schemaN)) {
             if (text.length() > 1) {
@@ -205,7 +241,7 @@ public final class DatabaseComparator {
         CellStyle headerStyle = cellStyleHeader(workbook);
         Row row = sheet.createRow(line);
         int columnOffset = 0;
-        for (Schema schema : diff.schemas) {
+        for (int i = 0, count = diff.schemas.size(); i < count; i++) {
             Cell typeCell = row.createCell(columnOffset++);
             Cell tableCell = row.createCell(columnOffset++);
             typeCell.setCellStyle(headerStyle);
@@ -218,9 +254,9 @@ public final class DatabaseComparator {
     private Sheet createSchemaSheet(SchemaDiff diff, Workbook workbook) {
         Sheet sheet = workbook.createSheet(diff.schemas.get(0).getName());
         int columnOffset = -1;
-        for (Schema schema : diff.schemas) {
-            for (int i = 0; i < schemaColumnWidths.length; i++) {
-                sheet.setColumnWidth(++columnOffset, schemaColumnWidths[i] * 256);
+        for (int i = 0, count = diff.schemas.size(); i < count; i++) {
+            for (int col = 0; col < schemaColumnWidths.length; col++) {
+                sheet.setColumnWidth(++columnOffset, schemaColumnWidths[col] * 256);
             }
         }
         return sheet;
@@ -248,7 +284,7 @@ public final class DatabaseComparator {
             int length;
             int scale;
 
-            if (Table.areColumnsEquals(columnName, diff.tables)) {
+            if (areColumnsEquals(columnName, diff.tables)) {
                 style = greenStyle;
                 Column column = table.getColumn(columnName);
                 stringColumn = column.getName();
@@ -314,7 +350,7 @@ public final class DatabaseComparator {
         Row row = sheet.createRow(line);
 
         int columnOffset = -1;
-        for (Table table : diff.tables) {
+        for (int i = 0, count = diff.tables.size(); i < count; i++) {
             Cell columnCell = row.createCell(++columnOffset);
             Cell typeCell = row.createCell(++columnOffset);
             Cell lengthCell = row.createCell(++columnOffset);
@@ -358,25 +394,29 @@ public final class DatabaseComparator {
         }
     }
 
-    private Sheet createTableSheet(TableDiff tableDiff, Workbook workbook) {
-        Sheet sheet = workbook.createSheet(tableDiff.tables.get(0).getName());
+    private Sheet createTableSheet(TableDiff diff, Workbook workbook) {
+        Sheet sheet = workbook.createSheet(diff.tables.get(0).getName());
         int columnOffset = -1;
-        for (Table table : tableDiff.tables) {
-            for (int i = 0; i < tableColumnWidths.length; i++) {
-                sheet.setColumnWidth(++columnOffset, tableColumnWidths[i] * 256);
+        for (int i = 0, count = diff.tables.size(); i < count; i++) {
+            for (int col = 0; col < tableColumnWidths.length; col++) {
+                sheet.setColumnWidth(++columnOffset, tableColumnWidths[col] * 256);
             }
         }
         return sheet;
     }
 
-    private void exportExcel(SchemaDiff schemaDiff) throws Exception {
-        Workbook workbook = new HSSFWorkbook();
-        List<TableDiff> tableDiffs = exportSchemaDiff(schemaDiff, workbook);
-        for (TableDiff tableDiff : tableDiffs) {
-            exportTableDiff(tableDiff, workbook);
+    private void exportExcel(SchemaDiff schemaDiff) {
+        try {
+            Workbook workbook = new HSSFWorkbook();
+            List<TableDiff> tableDiffs = exportSchemaDiff(schemaDiff, workbook);
+            for (TableDiff tableDiff : tableDiffs) {
+                exportTableDiff(tableDiff, workbook);
+            }
+            workbook.write(new FileOutputStream(excelFile));
+            workbook.close();
+        } catch (IOException ioe) {
+            throw UncheckedException.wrap(ioe);
         }
-        workbook.write(new FileOutputStream(excelFile));
-        workbook.close();
     }
 
     private List<TableDiff> exportSchemaDiff(SchemaDiff diff, Workbook workbook) {

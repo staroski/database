@@ -7,6 +7,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import br.com.staroski.UncheckedException;
+import br.com.staroski.Utils;
+
 public final class Catalog {
 
     private final Connection connection;
