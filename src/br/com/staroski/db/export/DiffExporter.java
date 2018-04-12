@@ -1,8 +1,10 @@
-package br.com.staroski.db.diff;
+package br.com.staroski.db.export;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -27,7 +29,7 @@ import br.com.staroski.db.SchemaDiff;
 import br.com.staroski.db.Table;
 import br.com.staroski.db.TableDiff;
 
-public final class DatabaseComparator {
+public final class DiffExporter {
 
     private static final String MISSING = "MISSING";
 
@@ -61,8 +63,6 @@ public final class DatabaseComparator {
         System.out.printf(format, args);
     }
 
-    private final File excelFile;
-
     private CellStyle header;
     private CellStyle green;
     private CellStyle yellow;
@@ -74,15 +74,15 @@ public final class DatabaseComparator {
     private String[] tableColumnNames = new String[] { "Column", "Size", "Type", "Scale" };
     private int[] tableColumnWidths = new int[] { 40, 20, 10, 10 };
 
-    public DatabaseComparator(File excelFile) {
-        this.excelFile = excelFile;
+    public void exportDifferences(File excel, Schema schema1, Schema schema2, Schema... schemaN) {
+        try {
+            exportDifferences(new FileOutputStream(excel), schema1, schema2, schemaN);
+        } catch (FileNotFoundException fnfe) {
+            throw UncheckedException.wrap(fnfe);
+        }
     }
 
-    public DatabaseComparator(String excelFile) {
-        this(new File(excelFile));
-    }
-
-    public void compareSchemas(Schema schema1, Schema schema2, Schema... schemaN) {
+    public void exportDifferences(OutputStream excel, Schema schema1, Schema schema2, Schema... schemaN) {
         StringBuilder text = new StringBuilder();
         for (Schema schema : Utils.asList(schema1, schema2, schemaN)) {
             if (text.length() > 1) {
@@ -97,9 +97,58 @@ public final class DatabaseComparator {
         SchemaDiff diff = schema1.compareWith(schema2, schemaN);
         debug("    done!%n");
 
-        debug("exporting excel report%n");
-        exportExcel(diff);
-        debug("report saved at: \"%s\"%n", excelFile.getAbsolutePath());
+        exportExcel(excel, diff);
+    }
+
+    public void exportDifferences(String excel, Schema schema1, Schema schema2, Schema... schemaN) {
+        exportDifferences(new File(excel), schema1, schema2, schemaN);
+    }
+
+    public void exportExcel(File excel, SchemaDiff schemaDiff) {
+        try {
+            exportExcel(new FileOutputStream(excel), schemaDiff);
+        } catch (FileNotFoundException fnfe) {
+            throw UncheckedException.wrap(fnfe);
+        }
+    }
+
+    public void exportExcel(OutputStream excel, SchemaDiff schemaDiff) {
+        try {
+            long start = System.currentTimeMillis();
+            debug("exporting excel report...%n");
+            Workbook workbook = new HSSFWorkbook();
+
+            debug("creating sheet %s...", schemaDiff.schemas.get(0).getName());
+            exportSchemaDiff(schemaDiff, workbook);
+            debug("    done!%n");
+
+            List<TableDiff> tableDiffs = new LinkedList<TableDiff>();
+            for (String tableName : schemaDiff.tableNames) {
+                debug("comparing table %s...", tableName);
+                TableDiff tableDiff = schemaDiff.getTableDiffBetweenAllSchemas(tableName);
+                debug("    done!%n");
+                if (tableDiff != null) {
+                    tableDiffs.add(tableDiff);
+                }
+            }
+            for (TableDiff tableDiff : tableDiffs) {
+                debug("creating sheet %s...", tableDiff.tables.get(0).getName());
+                exportTableDiff(tableDiff, workbook);
+                debug("    done!%n");
+            }
+            workbook.write(excel);
+            workbook.close();
+            debug("excel report exported!%n");
+
+            long elapsed = System.currentTimeMillis() - start;
+            debug("elapsed time: %s%n", Utils.formatInterval(elapsed));
+        } catch (IOException ioe) {
+            throw UncheckedException.wrap(ioe);
+        }
+    }
+
+    public void exportExcel(String excel, SchemaDiff schemaDiff) {
+        exportExcel(new File(excel), schemaDiff);
     }
 
     private CellStyle cellStyleGreen(Workbook workbook) {
@@ -405,23 +454,7 @@ public final class DatabaseComparator {
         return sheet;
     }
 
-    private void exportExcel(SchemaDiff schemaDiff) {
-        try {
-            Workbook workbook = new HSSFWorkbook();
-            List<TableDiff> tableDiffs = exportSchemaDiff(schemaDiff, workbook);
-            for (TableDiff tableDiff : tableDiffs) {
-                exportTableDiff(tableDiff, workbook);
-            }
-            workbook.write(new FileOutputStream(excelFile));
-            workbook.close();
-        } catch (IOException ioe) {
-            throw UncheckedException.wrap(ioe);
-        }
-    }
-
-    private List<TableDiff> exportSchemaDiff(SchemaDiff diff, Workbook workbook) {
-        List<TableDiff> tableDiffs = new LinkedList<TableDiff>();
-
+    private void exportSchemaDiff(SchemaDiff diff, Workbook workbook) {
         Sheet sheet = createSchemaSheet(diff, workbook);
 
         int line = -1;
@@ -430,25 +463,8 @@ public final class DatabaseComparator {
         createSchemaHeaderForTables(workbook, sheet, ++line, diff);
 
         for (String tableName : diff.tableNames) {
-            ++line;
-            createSchemaCellForTable(diff, workbook, sheet, line, tableName);
-
-            List<Schema> schemasWithTable = diff.getSchemasWithTable(tableName);
-            if (schemasWithTable.size() > 1) {
-                Table table = schemasWithTable.get(0).getTable(tableName);
-                List<Table> otherTables = new LinkedList<Table>();
-                for (int i = 1; i < schemasWithTable.size(); i++) {
-                    otherTables.add(schemasWithTable.get(i).getTable(tableName));
-                }
-                debug("comparing table %s...", tableName);
-                TableDiff tableDiff = table.compareWith(otherTables);
-                debug(" done!%n", tableName);
-                if (tableDiff.hasDifferences) {
-                    tableDiffs.add(tableDiff);
-                }
-            }
+            createSchemaCellForTable(diff, workbook, sheet, ++line, tableName);
         }
-        return tableDiffs;
     }
 
     private void exportTableDiff(TableDiff diff, Workbook workbook) {

@@ -3,6 +3,7 @@ package br.com.staroski;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public final class Utils {
 
@@ -31,6 +32,14 @@ public final class Utils {
             list.add(objectN);
         }
         return Collections.unmodifiableList(list);
+    }
+
+    public static String formatInterval(final long elapsed) {
+        final long h = TimeUnit.MILLISECONDS.toHours(elapsed);
+        final long min = TimeUnit.MILLISECONDS.toMinutes(elapsed - TimeUnit.HOURS.toMillis(h));
+        final long s = TimeUnit.MILLISECONDS.toSeconds(elapsed - TimeUnit.HOURS.toMillis(h) - TimeUnit.MINUTES.toMillis(min));
+        final long ms = TimeUnit.MILLISECONDS.toMillis(elapsed - TimeUnit.HOURS.toMillis(h) - TimeUnit.MINUTES.toMillis(min) - TimeUnit.SECONDS.toMillis(s));
+        return String.format("%02d:%02d:%02d.%03d", h, min, s, ms);
     }
 
     private static boolean equals(String a, String b, boolean ignoreCase) {

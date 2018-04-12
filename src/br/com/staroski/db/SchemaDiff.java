@@ -1,19 +1,24 @@
 package br.com.staroski.db;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public final class SchemaDiff {
 
     public final boolean hasDifferences;
-    public final List<String> tableNames;
     public final List<Schema> schemas;
+    public final List<String> tableNames;
+
+    private final Map<String, TableDiff> tableDiffMap;
 
     SchemaDiff(List<Schema> schemas) {
         this.schemas = schemas;
         this.tableNames = getTableNames(schemas);
         this.hasDifferences = checkDifferences(tableNames);
+        this.tableDiffMap = new HashMap<String, TableDiff>();
     }
 
     public boolean allSchemasContains(String tableName) {
@@ -25,14 +30,23 @@ public final class SchemaDiff {
         return true;
     }
 
-    public List<Schema> getSchemasWithTable(String tableName) {
-        List<Schema> containing = new LinkedList<Schema>();
-        for (Schema schema : schemas) {
-            if (schema.contains(tableName)) {
-                containing.add(schema);
-            }
+    public TableDiff getTableDiffBetweenAllSchemas(String tableName) {
+        if (tableDiffMap.containsKey(tableName)) {
+            return tableDiffMap.get(tableName);
         }
-        return containing;
+        List<Schema> schemasWithTable = getSchemasWithTable(tableName);
+        if (schemasWithTable.size() > 1) {
+            Table table = schemasWithTable.get(0).getTable(tableName);
+            List<Table> otherTables = new LinkedList<Table>();
+            for (int i = 1; i < schemasWithTable.size(); i++) {
+                otherTables.add(schemasWithTable.get(i).getTable(tableName));
+            }
+            TableDiff tableDiff = table.compareWith(otherTables);
+            tableDiffMap.put(tableName, tableDiff);
+            return tableDiff;
+        }
+        tableDiffMap.put(tableName, null);
+        return null;
     }
 
     private boolean checkDifferences(List<String> tableNames) {
@@ -46,6 +60,16 @@ public final class SchemaDiff {
             }
         }
         return false;
+    }
+
+    private List<Schema> getSchemasWithTable(String tableName) {
+        List<Schema> containing = new LinkedList<Schema>();
+        for (Schema schema : schemas) {
+            if (schema.contains(tableName)) {
+                containing.add(schema);
+            }
+        }
+        return containing;
     }
 
     private List<String> getTableNames(List<Schema> schemas) {
