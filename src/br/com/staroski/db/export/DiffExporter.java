@@ -74,36 +74,6 @@ public final class DiffExporter {
     private String[] tableColumnNames = new String[] { "Column", "Size", "Type", "Scale" };
     private int[] tableColumnWidths = new int[] { 40, 20, 10, 10 };
 
-    public void exportDifferences(File excel, Schema schema1, Schema schema2, Schema... schemaN) {
-        try {
-            exportDifferences(new FileOutputStream(excel), schema1, schema2, schemaN);
-        } catch (FileNotFoundException fnfe) {
-            throw UncheckedException.wrap(fnfe);
-        }
-    }
-
-    public void exportDifferences(OutputStream excel, Schema schema1, Schema schema2, Schema... schemaN) {
-        StringBuilder text = new StringBuilder();
-        for (Schema schema : Utils.asList(schema1, schema2, schemaN)) {
-            if (text.length() > 1) {
-                text.append(", ");
-            }
-            text.append(schema.getCatalog().getDatabase().getAlias());
-            text.append(".");
-            text.append(schema.getName());
-        }
-
-        debug("comparing schemas %s...", text.toString());
-        SchemaDiff diff = schema1.compareWith(schema2, schemaN);
-        debug("    done!%n");
-
-        exportExcel(excel, diff);
-    }
-
-    public void exportDifferences(String excel, Schema schema1, Schema schema2, Schema... schemaN) {
-        exportDifferences(new File(excel), schema1, schema2, schemaN);
-    }
-
     public void exportExcel(File excel, SchemaDiff schemaDiff) {
         try {
             exportExcel(new FileOutputStream(excel), schemaDiff);
