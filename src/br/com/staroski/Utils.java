@@ -34,12 +34,33 @@ public final class Utils {
         return Collections.unmodifiableList(list);
     }
 
-    public static String formatInterval(final long elapsed) {
+    public static String formatInterval(long elapsed) {
         final long h = TimeUnit.MILLISECONDS.toHours(elapsed);
         final long min = TimeUnit.MILLISECONDS.toMinutes(elapsed - TimeUnit.HOURS.toMillis(h));
         final long s = TimeUnit.MILLISECONDS.toSeconds(elapsed - TimeUnit.HOURS.toMillis(h) - TimeUnit.MINUTES.toMillis(min));
         final long ms = TimeUnit.MILLISECONDS.toMillis(elapsed - TimeUnit.HOURS.toMillis(h) - TimeUnit.MINUTES.toMillis(min) - TimeUnit.SECONDS.toMillis(s));
-        return String.format("%02d:%02d:%02d.%03d", h, min, s, ms);
+
+        StringBuilder text = new StringBuilder("");
+        String space = "";
+        if (h > 0) {
+            text.append(String.format("%d hour%s", h, h > 1 ? "s" : ""));
+            space = " ";
+        }
+        if (min > 0) {
+            text.append(space);
+            text.append(String.format("%d minute%s", min, min > 1 ? "s" : ""));
+            space = " ";
+        }
+        if (s > 0) {
+            text.append(space);
+            text.append(String.format("%d second%s", s, s > 1 ? "s" : ""));
+            space = " ";
+        }
+        if (ms > 0) {
+            text.append(space);
+            text.append(String.format("%d millisecond%s", ms, ms > 1 ? "s" : ""));
+        }
+        return text.toString();
     }
 
     private static boolean equals(String a, String b, boolean ignoreCase) {
