@@ -1,5 +1,7 @@
 package br.com.staroski.db;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,18 +12,41 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import br.com.staroski.IO;
 import br.com.staroski.UncheckedException;
 import br.com.staroski.Utils;
 
 public final class Table implements Comparable<Table> {
 
-    private final Connection connection;
-    private final Schema schema;
+    static Table readFrom(DataInputStream in) {
+        String name = IO.readString(in);
+        String type = IO.readString(in);
+        List<Column> columns = new LinkedList<Column>();
+        Map<String, Column> columnMap = new HashMap<String, Column>();
+        Table table = new Table(name, type, columns, columnMap);
+        int columnCount = IO.readInt(in);
+        for (int i = 0; i < columnCount; i++) {
+            Column column = Column.readFrom(in);
+            columns.add(column);
+            columnMap.put(column.getName(), column);
+        }
+        return table;
+    }
+
     private final String name;
     private final String type;
 
+    private Connection connection;
+    private Schema schema;
     private List<Column> columns;
     private Map<String, Column> columnMap;
+
+    private Table(String name, String type, List<Column> columns, Map<String, Column> columnMap) {
+        this.name = name;
+        this.type = type;
+        this.columns = Collections.unmodifiableList(columns);
+        this.columnMap = columnMap;
+    }
 
     Table(Connection connection, Schema schema, String name, String type) {
         this.connection = connection;
@@ -100,34 +125,36 @@ public final class Table implements Comparable<Table> {
         if (columns != null) {
             return columns;
         }
-        List<Column> list = new LinkedList<Column>();
         columnMap = new HashMap<String, Column>();
-        Schema thisSchema = getSchema();
-        try {
-            String thisCatalogName = thisSchema.getCatalog().getName();
-            String thisSchemaName = thisSchema.getName();
-            String thisTableName = getName();
-            ResultSet result = connection.getMetaData().getColumns(thisCatalogName, thisSchemaName, thisTableName, null);
-            while (result.next()) {
-                String catalogName = result.getString("TABLE_CAT");
-                String schemaName = result.getString("TABLE_SCHEM");
-                String tableName = result.getString("TABLE_NAME");
-                if (!Utils.areEqualsIgnoreCase(thisCatalogName, catalogName)
-                        || !Utils.areEqualsIgnoreCase(thisSchemaName, schemaName)
-                        || !Utils.areEqualsIgnoreCase(thisTableName, tableName)) {
-                    continue;
+        List<Column> list = new LinkedList<Column>();
+        if (connection != null) {
+            Schema thisSchema = getSchema();
+            try {
+                String thisCatalogName = thisSchema.getCatalog().getName();
+                String thisSchemaName = thisSchema.getName();
+                String thisTableName = getName();
+                ResultSet result = connection.getMetaData().getColumns(thisCatalogName, thisSchemaName, thisTableName, null);
+                while (result.next()) {
+                    String catalogName = result.getString("TABLE_CAT");
+                    String schemaName = result.getString("TABLE_SCHEM");
+                    String tableName = result.getString("TABLE_NAME");
+                    if (!Utils.areEqualsIgnoreCase(thisCatalogName, catalogName)
+                            || !Utils.areEqualsIgnoreCase(thisSchemaName, schemaName)
+                            || !Utils.areEqualsIgnoreCase(thisTableName, tableName)) {
+                        continue;
+                    }
+                    String columnName = result.getString("COLUMN_NAME");
+                    String columnType = result.getString("TYPE_NAME");
+                    int size = result.getInt("COLUMN_SIZE");
+                    int decimalDigits = result.getInt("DECIMAL_DIGITS");
+                    int javaSqlType = result.getInt("DATA_TYPE");
+                    Column column = new Column(columnName, columnType, size, decimalDigits, javaSqlType);
+                    list.add(column);
+                    columnMap.put(columnName, column);
                 }
-                String columnName = result.getString("COLUMN_NAME");
-                String columnType = result.getString("TYPE_NAME");
-                int size = result.getInt("COLUMN_SIZE");
-                int decimalDigits = result.getInt("DECIMAL_DIGITS");
-                int javaSqlType = result.getInt("DATA_TYPE");
-                Column column = new Column(columnName, columnType, size, decimalDigits, javaSqlType);
-                list.add(column);
-                columnMap.put(columnName, column);
+            } catch (SQLException e) {
+                throw UncheckedException.wrap(e);
             }
-        } catch (SQLException e) {
-            throw UncheckedException.wrap(e);
         }
         columns = Collections.unmodifiableList(list);
         return columns;
@@ -158,5 +185,20 @@ public final class Table implements Comparable<Table> {
     public String toString() {
         String tableName = getName();
         return String.format("%s[%s]", Table.class.getSimpleName(), tableName);
+    }
+
+    Table setSchema(Schema schema) {
+        this.schema = schema;
+        return this;
+    }
+
+    void writeTo(DataOutputStream out) {
+        IO.writeString(out, name);
+        IO.writeString(out, type);
+        List<Column> columns = getColumns();
+        IO.writeInt(out, columns.size());
+        for (Column column : columns) {
+            column.writeTo(out);
+        }
     }
 }

@@ -102,9 +102,11 @@ public final class DiffExporter {
                 }
             }
             for (TableDiff tableDiff : tableDiffs) {
-                debug("creating sheet %s...", tableDiff.tables.get(0).getName());
-                exportTableDiff(tableDiff, workbook);
-                debug("    done!%n");
+                if (tableDiff.hasDifferences) {
+                    debug("creating sheet %s...", tableDiff.tables.get(0).getName());
+                    exportTableDiff(tableDiff, workbook);
+                    debug("    done!%n");
+                }
             }
             workbook.write(excel);
             workbook.close();

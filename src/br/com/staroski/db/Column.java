@@ -1,6 +1,20 @@
 package br.com.staroski.db;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+
+import br.com.staroski.IO;
+
 public final class Column implements Comparable<Column> {
+
+    static Column readFrom(DataInputStream in) {
+        String name = IO.readString(in);
+        String type = IO.readString(in);
+        int size = IO.readInt(in);
+        int scale = IO.readInt(in);
+        int javaSqlType = IO.readInt(in);
+        return new Column(name, type, size, scale, javaSqlType);
+    }
 
     private final String name;
     private final String type;
@@ -8,11 +22,11 @@ public final class Column implements Comparable<Column> {
     private final int scale;
     private final int javaSqlType;
 
-    public Column(String name, String type, int size, int decimalDigits, int javaSqlType) {
+    Column(String name, String type, int size, int scale, int javaSqlType) {
         this.name = name;
         this.type = type;
         this.size = size;
-        this.scale = decimalDigits;
+        this.scale = scale;
         this.javaSqlType = javaSqlType;
     }
 
@@ -92,5 +106,13 @@ public final class Column implements Comparable<Column> {
     @Override
     public String toString() {
         return String.format("%s[%s]", Column.class.getSimpleName(), getName());
+    }
+
+    void writeTo(DataOutputStream out) {
+        IO.writeString(out, name);
+        IO.writeString(out, type);
+        IO.writeInt(out, size);
+        IO.writeInt(out, scale);
+        IO.writeInt(out, javaSqlType);
     }
 }
