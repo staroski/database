@@ -1,4 +1,4 @@
-package br.com.staroski.db.export;
+package br.com.staroski.db;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,12 +23,12 @@ import org.apache.poi.ss.util.CellRangeAddress;
 
 import br.com.staroski.UncheckedException;
 import br.com.staroski.Utils;
-import br.com.staroski.db.Column;
-import br.com.staroski.db.Schema;
-import br.com.staroski.db.SchemaDiff;
-import br.com.staroski.db.Table;
-import br.com.staroski.db.TableDiff;
 
+/**
+ * This class is used to export database schema differences to an excel file
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class DiffExporter {
 
     private static final String MISSING = "MISSING";
@@ -274,6 +274,7 @@ public final class DiffExporter {
 
     private Sheet createSchemaSheet(SchemaDiff diff, Workbook workbook) {
         Sheet sheet = workbook.createSheet(diff.schemas.get(0).getName());
+        sheet.createFreezePane(0, 3);
         int columnOffset = -1;
         for (int i = 0, count = diff.schemas.size(); i < count; i++) {
             for (int col = 0; col < schemaColumnWidths.length; col++) {
@@ -417,6 +418,7 @@ public final class DiffExporter {
 
     private Sheet createTableSheet(TableDiff diff, Workbook workbook) {
         Sheet sheet = workbook.createSheet(diff.tables.get(0).getName());
+        sheet.createFreezePane(0, 3);
         int columnOffset = -1;
         for (int i = 0, count = diff.tables.size(); i < count; i++) {
             for (int col = 0; col < tableColumnWidths.length; col++) {
