@@ -1,5 +1,10 @@
 package br.com.staroski;
 
+/**
+ * Used to wrap checked exceptions into unchecked exceptions
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class UncheckedException extends RuntimeException {
 
     private static final long serialVersionUID = 1;

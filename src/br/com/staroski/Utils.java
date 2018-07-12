@@ -5,6 +5,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * General purpose utility methods
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class Utils {
 
     public static boolean areEquals(String a, String b) {

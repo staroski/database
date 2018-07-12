@@ -16,6 +16,11 @@ import br.com.staroski.IO;
 import br.com.staroski.UncheckedException;
 import br.com.staroski.Utils;
 
+/**
+ * This class represents a database schema
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class Schema {
 
     static Schema readFrom(DataInputStream in) {
@@ -52,14 +57,22 @@ public final class Schema {
     }
 
     public SchemaDiff compareWith(Collection<Schema> otherSchemas) {
+        return compareWith(null, otherSchemas);
+    }
+
+    public SchemaDiff compareWith(DiffFilter filter, Collection<Schema> otherSchemas) {
         List<Schema> schemas = new LinkedList<Schema>();
         schemas.add(this);
         schemas.addAll(otherSchemas);
-        return new SchemaDiff(schemas);
+        return new SchemaDiff(filter, schemas);
     }
 
     public SchemaDiff compareWith(Schema other, Schema... moreSchemas) {
-        return compareWith(Utils.asList(other, moreSchemas));
+        return compareWith(null, other, moreSchemas);
+    }
+
+    public SchemaDiff compareWith(DiffFilter filter, Schema other, Schema... moreSchemas) {
+        return compareWith(filter, Utils.asList(other, moreSchemas));
     }
 
     public boolean contains(String tableName) {

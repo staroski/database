@@ -5,6 +5,11 @@ import java.io.DataOutputStream;
 
 import br.com.staroski.IO;
 
+/**
+ * This class represents a database column
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class Column implements Comparable<Column> {
 
     static Column readFrom(DataInputStream in) {

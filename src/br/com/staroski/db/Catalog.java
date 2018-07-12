@@ -15,6 +15,11 @@ import br.com.staroski.IO;
 import br.com.staroski.UncheckedException;
 import br.com.staroski.Utils;
 
+/**
+ * This class represents a database catalog
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class Catalog {
 
     static Catalog readFrom(DataInputStream in) {

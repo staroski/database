@@ -6,6 +6,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This class keeps the differences between some schemas
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class SchemaDiff {
 
     public final boolean hasDifferences;
@@ -13,15 +18,20 @@ public final class SchemaDiff {
     public final List<String> tableNames;
 
     private final Map<String, TableDiff> tableDiffMap;
+    private final DiffFilter filter;
 
-    SchemaDiff(List<Schema> schemas) {
+    SchemaDiff(DiffFilter filter, List<Schema> schemas) {
+        this.filter = filter != null ? filter : new DiffFilter();
         this.schemas = schemas;
-        this.tableNames = getTableNames(schemas);
+        this.tableNames = getTableNames(schemas, this.filter);
         this.hasDifferences = checkDifferences(tableNames);
         this.tableDiffMap = new HashMap<String, TableDiff>();
     }
 
     public boolean allSchemasContains(String tableName) {
+        if (!filter.acceptTable(tableName)) {
+            return false;
+        }
         for (Schema schema : schemas) {
             if (!schema.contains(tableName)) {
                 return false;
@@ -31,6 +41,9 @@ public final class SchemaDiff {
     }
 
     public TableDiff getTableDiffBetweenAllSchemas(String tableName) {
+        if (!filter.acceptTable(tableName)) {
+            return null;
+        }
         if (tableDiffMap.containsKey(tableName)) {
             return tableDiffMap.get(tableName);
         }
@@ -41,7 +54,7 @@ public final class SchemaDiff {
             for (int i = 1; i < schemasWithTable.size(); i++) {
                 otherTables.add(schemasWithTable.get(i).getTable(tableName));
             }
-            TableDiff tableDiff = table.compareWith(otherTables);
+            TableDiff tableDiff = table.compareWith(filter, otherTables);
             tableDiffMap.put(tableName, tableDiff);
             return tableDiff;
         }
@@ -72,12 +85,12 @@ public final class SchemaDiff {
         return containing;
     }
 
-    private List<String> getTableNames(List<Schema> schemas) {
+    private List<String> getTableNames(List<Schema> schemas, DiffFilter filter) {
         final List<String> names = new LinkedList<String>();
         for (Schema schema : schemas) {
             for (Table table : schema.getTables()) {
                 String name = table.getName();
-                if (!names.contains(name)) {
+                if (filter.acceptTable(name) && !names.contains(name)) {
                     names.add(name);
                 }
             }

@@ -4,19 +4,30 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * This class keeps the differences between some tables
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class TableDiff {
 
     public final boolean hasDifferences;
     public final List<String> columnNames;
     public final List<Table> tables;
 
-    TableDiff(List<Table> tables) {
+    private final DiffFilter filter;
+
+    protected TableDiff(DiffFilter filter, List<Table> tables) {
+        this.filter = filter != null ? filter : new DiffFilter();
         this.tables = tables;
-        this.columnNames = getColumnNames(tables);
+        this.columnNames = getColumnNames(tables, this.filter);
         this.hasDifferences = checkDifferences(columnNames);
     }
 
     public boolean allTablesContains(String columnName) {
+        if (!filter.acceptColumn(columnName)) {
+            return false;
+        }
         for (Table table : tables) {
             if (!table.contains(columnName)) {
                 return false;
@@ -27,9 +38,11 @@ public final class TableDiff {
 
     public List<Table> getTablesWithColumn(String columnName) {
         List<Table> containing = new LinkedList<Table>();
-        for (Table table : tables) {
-            if (table.contains(columnName)) {
-                containing.add(table);
+        if (!filter.acceptColumn(columnName)) {
+            for (Table table : tables) {
+                if (table.contains(columnName)) {
+                    containing.add(table);
+                }
             }
         }
         return containing;
@@ -44,12 +57,12 @@ public final class TableDiff {
         return false;
     }
 
-    private List<String> getColumnNames(List<Table> tables) {
+    private List<String> getColumnNames(List<Table> tables, DiffFilter filter) {
         final List<String> names = new LinkedList<String>();
         for (Table table : tables) {
             for (Column column : table.getColumns()) {
                 String name = column.getName();
-                if (!names.contains(name)) {
+                if (filter.acceptColumn(name) && !names.contains(name)) {
                     names.add(name);
                 }
             }

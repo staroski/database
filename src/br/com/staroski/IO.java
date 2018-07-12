@@ -4,6 +4,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+/**
+ * Generic purpose I/O operations class
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class IO {
 
     public static boolean readBoolean(DataInputStream in) {

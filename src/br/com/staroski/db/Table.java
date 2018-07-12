@@ -16,6 +16,11 @@ import br.com.staroski.IO;
 import br.com.staroski.UncheckedException;
 import br.com.staroski.Utils;
 
+/**
+ * This class represents a database table
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class Table implements Comparable<Table> {
 
     static Table readFrom(DataInputStream in) {
@@ -71,14 +76,22 @@ public final class Table implements Comparable<Table> {
     }
 
     public TableDiff compareWith(Collection<Table> otherTables) {
+        return compareWith(null, otherTables);
+    }
+
+    public TableDiff compareWith(DiffFilter filter, Collection<Table> otherTables) {
         List<Table> tables = new LinkedList<Table>();
         tables.add(this);
         tables.addAll(otherTables);
-        return new TableDiff(tables);
+        return new TableDiff(filter, tables);
     }
 
     public TableDiff compareWith(Table other, Table... moreTables) {
-        return compareWith(Utils.asList(other, moreTables));
+        return compareWith(null, other, moreTables);
+    }
+
+    public TableDiff compareWith(DiffFilter filter, Table other, Table... moreTables) {
+        return compareWith(filter, Utils.asList(other, moreTables));
     }
 
     public boolean contains(String columnName) {

@@ -18,6 +18,11 @@ import br.com.staroski.IO;
 import br.com.staroski.UncheckedException;
 import br.com.staroski.Utils;
 
+/**
+ * This class represents a database
+ * 
+ * @author Ricardo Artur Staroski
+ */
 public final class Database {
 
     public static Database connect(String driver, String protocol, String host, int port, String databaseName, String user, String pass) {
