@@ -39,6 +39,21 @@ public final class Utils {
         return Collections.unmodifiableList(list);
     }
 
+    public static String firsLetterUppercase(String text) {
+        if (text == null) {
+            return null;
+        }
+        int size = text.length();
+        switch (size) {
+            case 0:
+                return text;
+            case 1:
+                return text.toUpperCase();
+            default:
+                return text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
+        }
+    }
+
     public static String formatInterval(long elapsed) {
         final long h = TimeUnit.MILLISECONDS.toHours(elapsed);
         final long min = TimeUnit.MILLISECONDS.toMinutes(elapsed - TimeUnit.HOURS.toMillis(h));

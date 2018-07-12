@@ -71,7 +71,7 @@ public final class DiffExporter {
     private String[] schemaColumnNames = new String[] { "Type", "Name" };
     private int[] schemaColumnWidths = new int[] { 25, 55 };
 
-    private String[] tableColumnNames = new String[] { "Column", "Size", "Type", "Scale" };
+    private String[] tableColumnNames = new String[] { "Column", "Type", "Size", "Scale" };
     private int[] tableColumnWidths = new int[] { 40, 20, 10, 10 };
 
     public void exportExcel(File excel, SchemaDiff schemaDiff) {
@@ -362,7 +362,7 @@ public final class DiffExporter {
             lengthCell.setCellStyle(headerStyle);
             scaleCell.setCellStyle(headerStyle);
 
-            columnCell.setCellValue("Table " + table.getName());
+            columnCell.setCellValue(Utils.firsLetterUppercase(table.getType()) + " " + table.getName());
         }
         sheet.addMergedRegion(new CellRangeAddress(line, line, 0, columnOffset));
     }
